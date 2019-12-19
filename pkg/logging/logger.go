@@ -1,3 +1,4 @@
+// Package logging provides functionality to log into AWS Kinesis.
 package logging
 
 import (
@@ -11,11 +12,14 @@ import (
 	"sync"
 )
 
+
+// Logger provides debug, info, warn, panic, & fatal functions to log.
 type Logger struct {
 	internalLogger *zap.Logger
 }
 
 
+// LogDetails is the schema structure for logging.
 type LogDetails struct {
 	Message string
 	ServiceId string
@@ -28,6 +32,7 @@ type LogDetails struct {
 }
 
 
+// KinesisHook
 type KinesisHook struct {
 	svc 			*kinesis.Kinesis
 	Async			bool
@@ -37,7 +42,9 @@ type KinesisHook struct {
 	isProd			bool
 }
 
-
+// InitLogger initializes a new logger.
+// Connects into AWS and sets up a kinesis service.
+// It returns a new logger instance and any errors upon initialization.
 func InitLogger(isProd bool, loggerName, streamName, awsAccessKey, awsSecretKey, awsRegion string) (Logger, error) {
 	l := Logger{}
 
@@ -74,39 +81,50 @@ func InitLogger(isProd bool, loggerName, streamName, awsAccessKey, awsSecretKey,
 }
 
 
+// Debug provides developer ability to send useful debug related  messages into Kinesis logging stream.
 func (l *Logger) Debug(ld LogDetails) {
 	j, _ := json.Marshal(ld)
 	l.internalLogger.Debug(string(j))
 }
 
 
+// Info provides developer ability to send general info  messages into Kinesis logging stream.
 func (l *Logger) Info(ld LogDetails) {
 	j, _ := json.Marshal(ld)
 	l.internalLogger.Info(string(j))
 }
 
+
+// Warn provides developer ability to send useful warning messages into Kinesis logging stream.
 func (l *Logger) Warn(ld LogDetails) {
 	j, _ := json.Marshal(ld)
 	l.internalLogger.Warn(string(j))
 }
 
+
+// Fatal provides developer ability to send application fatal messages into Kinesis logging stream.
 func (l *Logger) Fatal(ld LogDetails) {
 	j, _ := json.Marshal(ld)
 	l.internalLogger.Fatal(string(j))
 }
 
+
+// Error provides developer ability to send error  messages into Kinesis logging stream.
 func (l *Logger) Error(ld LogDetails) {
 	j, _ := json.Marshal(ld)
 	l.internalLogger.Fatal(string(j))
 }
 
-
+// Panic provides developer ability to send panic  messages into Kinesis logging stream.
 func (l *Logger) Panic(ld LogDetails) {
 	j, _ := json.Marshal(ld)
 	l.internalLogger.Panic(string(j))
 }
 
-
+// newKinesisHook creates a KinesisHook struct to to use in the zap log.
+// Tries to find the existing aws Kinesis stream.
+// Creates stream when doesn't exist.
+// Returns a pointer with a implemented KinesisHook.
 func newKinesisHook(streamName string, cfg *aws.Config, isProd bool) (*KinesisHook, error) {
 	s := session.New(cfg)
 	kc := kinesis.New(s)
@@ -143,6 +161,7 @@ func newKinesisHook(streamName string, cfg *aws.Config, isProd bool) (*KinesisHo
 }
 
 
+// getHook inserts the function to use when zap creates a log entry.
 func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
 	kWriter := func(e zapcore.Entry) error {
 		if !ch.isAcceptedLevel(e.Level) {
@@ -196,7 +215,7 @@ func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
 
 
 // Levels sets which levels to sent to cloudwatch
-func (ch *KinesisHook) Levels() []zapcore.Level {
+func (ch *KinesisHook) levels() []zapcore.Level {
 	if ch.AcceptedLevels == nil {
 		return AllLevels
 	}
@@ -204,7 +223,7 @@ func (ch *KinesisHook) Levels() []zapcore.Level {
 }
 
 func (ch *KinesisHook) isAcceptedLevel(level zapcore.Level) bool {
-	for _, lv := range ch.Levels() {
+	for _, lv := range ch.levels() {
 		if lv == level {
 			return true
 		}
@@ -220,14 +239,4 @@ var AllLevels = []zapcore.Level{
 	zapcore.ErrorLevel,
 	zapcore.FatalLevel,
 	zapcore.PanicLevel,
-}
-
-// LevelThreshold - Returns every logging level above and including the given parameter.
-func LevelThreshold(l zapcore.Level) []zapcore.Level {
-	for i := range AllLevels {
-		if AllLevels[i] == l {
-			return AllLevels[i:]
-		}
-	}
-	return []zapcore.Level{}
 }
