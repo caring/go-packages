@@ -16,23 +16,25 @@ import (
 // Logger provides debug, info, warn, panic, & fatal functions to log.
 type Logger struct {
 	internalLogger *zap.Logger
+	serviceId string
+	writeToKinesis bool
 }
 
 
 // LogDetails is the schema structure for logging.
 type LogDetails struct {
 	Message string
-	ServiceId string
 	CorrelationalId string
 	TraceabilityId string
 	ClientId string
 	UserId string
 	Endpoint string
 	AdditionalData map[string]string
+	IsReportable bool
 }
 
 
-// KinesisHook
+// KinesisHook provides the details to hook into the Zap logger
 type KinesisHook struct {
 	svc 			*kinesis.Kinesis
 	Async			bool
@@ -40,13 +42,15 @@ type KinesisHook struct {
 	streamName 		string
 	m				sync.Mutex
 	isProd			bool
+	serviceID		string
 }
 
 // InitLogger initializes a new logger.
 // Connects into AWS and sets up a kinesis service.
 // It returns a new logger instance and any errors upon initialization.
-func InitLogger(isProd bool, loggerName, streamName, awsAccessKey, awsSecretKey, awsRegion string) (Logger, error) {
+func InitLogger(isProd bool, loggerName, streamName, serviceID, awsAccessKey, awsSecretKey, awsRegion string, writeToKinesis bool) (Logger, error) {
 	l := Logger{}
+	l.serviceId = serviceID
 
 	cred := credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, "")
 	cfg := aws.NewConfig().WithRegion(awsRegion).WithCredentials(cred)
@@ -67,13 +71,24 @@ func InitLogger(isProd bool, loggerName, streamName, awsAccessKey, awsSecretKey,
 		config := zap.NewProductionConfig()
 		config.Encoding = "json"
 		logger, _ := config.Build()
-		logger = logger.WithOptions(zap.Hooks(kcHook)).Named(loggerName)
+
+		if writeToKinesis {
+			logger = logger.WithOptions(zap.Hooks(kcHook))
+		}
+
+		logger = logger.Named(loggerName)
 		l.internalLogger = logger
 	} else {
 		config := zap.NewDevelopmentConfig()
 		config.Encoding = "json"
 		logger, _ := config.Build()
-		logger = logger.WithOptions(zap.Hooks(kcHook)).Named(loggerName)
+		logger, _ := config.Build()
+
+		if writeToKinesis {
+			logger = logger.WithOptions(zap.Hooks(kcHook))
+		}
+
+		logger = logger.Named(loggerName)
 		l.internalLogger = logger
 	}
 
@@ -81,10 +96,18 @@ func InitLogger(isProd bool, loggerName, streamName, awsAccessKey, awsSecretKey,
 }
 
 
+// GetInternalLogger returns the zap internal logger pointer
+func (l *Logger) GetInternalLogger() *zap.Logger {
+	return l.internalLogger
+}
+
+
 // Debug provides developer ability to send useful debug related  messages into Kinesis logging stream.
-func (l *Logger) Debug(ld LogDetails) {
-	j, _ := json.Marshal(ld)
-	l.internalLogger.Debug(string(j))
+func (l *Logger) Debug(ld LogDetails) error {
+	c, err := getLogContent(ld, l)
+	l.internalLogger.Debug(c)
+
+	return err
 }
 
 
@@ -112,14 +135,40 @@ func (l *Logger) Fatal(ld LogDetails) {
 // Error provides developer ability to send error  messages into Kinesis logging stream.
 func (l *Logger) Error(ld LogDetails) {
 	j, _ := json.Marshal(ld)
-	l.internalLogger.Fatal(string(j))
+	l.internalLogger.Error(string(j))
 }
+
 
 // Panic provides developer ability to send panic  messages into Kinesis logging stream.
 func (l *Logger) Panic(ld LogDetails) {
 	j, _ := json.Marshal(ld)
 	l.internalLogger.Panic(string(j))
 }
+
+
+// getLogContents aggregates the LogDetails and Logger into a combined map.
+// It returns a json string to insert into an actual log.
+func getLogContent(details LogDetails, l *Logger) (string, error) {
+	m := map[string]interface{}{
+		"message": details.Message,
+		"additionalData": details.AdditionalData,
+		"userID": details.UserId,
+		"traceabilityID": details.TraceabilityId,
+		"endpoint": details.Endpoint,
+		"correlationalID": details.CorrelationalId,
+		"clientID": details.ClientId,
+		"serviceID": l.serviceId,
+	}
+
+	jc, err := json.Marshal(m)
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(jc), nil
+}
+
 
 // newKinesisHook creates a KinesisHook struct to to use in the zap log.
 // Tries to find the existing aws Kinesis stream.
