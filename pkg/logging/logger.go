@@ -112,37 +112,47 @@ func (l *Logger) Debug(ld LogDetails) error {
 
 
 // Info provides developer ability to send general info  messages into Kinesis logging stream.
-func (l *Logger) Info(ld LogDetails) {
-	j, _ := json.Marshal(ld)
-	l.internalLogger.Info(string(j))
+func (l *Logger) Info(ld LogDetails) error {
+	c, err := getLogContent(ld, l)
+	l.internalLogger.Info(c)
+
+	return err
 }
 
 
 // Warn provides developer ability to send useful warning messages into Kinesis logging stream.
-func (l *Logger) Warn(ld LogDetails) {
-	j, _ := json.Marshal(ld)
-	l.internalLogger.Warn(string(j))
+func (l *Logger) Warn(ld LogDetails) error {
+	c, err := getLogContent(ld, l)
+	l.internalLogger.Warn(c)
+
+	return err
 }
 
 
 // Fatal provides developer ability to send application fatal messages into Kinesis logging stream.
-func (l *Logger) Fatal(ld LogDetails) {
-	j, _ := json.Marshal(ld)
-	l.internalLogger.Fatal(string(j))
+func (l *Logger) Fatal(ld LogDetails) error {
+	c, err := getLogContent(ld, l)
+	l.internalLogger.Fatal(c)
+
+	return err
 }
 
 
 // Error provides developer ability to send error  messages into Kinesis logging stream.
-func (l *Logger) Error(ld LogDetails) {
-	j, _ := json.Marshal(ld)
-	l.internalLogger.Error(string(j))
+func (l *Logger) Error(ld LogDetails) error {
+	c, err := getLogContent(ld, l)
+	l.internalLogger.Error(c)
+
+	return err
 }
 
 
 // Panic provides developer ability to send panic  messages into Kinesis logging stream.
-func (l *Logger) Panic(ld LogDetails) {
-	j, _ := json.Marshal(ld)
-	l.internalLogger.Panic(string(j))
+func (l *Logger) Panic(ld LogDetails) error {
+	c, err := getLogContent(ld, l)
+	l.internalLogger.Panic(c)
+
+	return err
 }
 
 
