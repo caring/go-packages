@@ -2,58 +2,51 @@
 package logging
 
 import (
-	"encoding/json"
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"sync"
 )
 
-
-// Logger provides debug, info, warn, panic, & fatal functions to log.
+// Logger provides debug, info, warn, panic, & fatal functions to log as well as the schema structure for logging.
 type Logger struct {
+	Message string
+	// I don't actually know that these will be int64, just a guess to demonstrate an idea
+	CorrelationalID int64
+	TraceabilityID  int64
+	ClientID        int64
+	UserID          int64
+	Endpoint        string
+	AdditionalData  map[string]interface{}
+	IsReportable    *bool
+
+	// Internal
 	internalLogger *zap.Logger
-	serviceId string
+	serviceID      string
 	writeToKinesis bool
 }
 
-
-// LogDetails is the schema structure for logging.
-type LogDetails struct {
-	Message string
-	CorrelationalId string
-	TraceabilityId string
-	ClientId string
-	UserId string
-	Endpoint string
-	AdditionalData map[string]interface{}
-	IsReportable *bool
-	ParentDetails *LogDetails
-	Logger *Logger
-}
-
-
 // KinesisHook provides the details to hook into the Zap logger
 type KinesisHook struct {
-	svc 			*kinesis.Kinesis
-	Async			bool
-	AcceptedLevels	[]zapcore.Level
-	streamName 		string
-	m				sync.Mutex
-	isProd			bool
-	serviceID		string
+	svc            *kinesis.Kinesis
+	Async          bool
+	AcceptedLevels []zapcore.Level
+	streamName     string
+	m              sync.Mutex
+	isProd         bool
+	serviceID      string
 }
-
 
 // InitLogger initializes a new logger.
 // Connects into AWS and sets up a kinesis service.
 // It returns a new logger instance and any errors upon initialization.
 func InitLogger(isProd bool, loggerName, streamName, serviceID, awsAccessKey, awsSecretKey, awsRegion string, isAsync, writeToKinesis bool) (Logger, error) {
 	l := Logger{}
-	l.serviceId = serviceID
+	l.serviceID = serviceID
 
 	cred := credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, "")
 	cfg := aws.NewConfig().WithRegion(awsRegion).WithCredentials(cred)
@@ -97,164 +90,120 @@ func InitLogger(isProd bool, loggerName, streamName, serviceID, awsAccessKey, aw
 	return l, nil
 }
 
-
 // GetInternalLogger returns the zap internal logger pointer
 func (l *Logger) GetInternalLogger() *zap.Logger {
 	return l.internalLogger
 }
 
+// SpawnChild creates a new child logger that contains all of the fields already populated in its parent
+// changes to the child do not affect the parrent and vice-versa
+func (l *Logger) SpawnChild() *Logger {
+	newL := Logger(*l)
+
+	return &newL
+}
 
 // Debug provides developer ability to send useful debug related  messages into Kinesis logging stream.
-func (d *LogDetails) Debug(message string) error {
+func (l *Logger) Debug(message string) {
 	if message != "" {
-		d.Message = message
+		l.Message = message
 	}
 
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Debug(c)
-
-	return err
+	l.internalLogger.Debug(l.Message, l.getLogContent()...)
 }
-
 
 // Info provides developer ability to send general info  messages into Kinesis logging stream.
-func (d *LogDetails) Info(message string) error {
+func (l *Logger) Info(message string) {
 	if message != "" {
-		d.Message = message
+		l.Message = message
 	}
 
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Info(c)
-
-	return err
+	l.internalLogger.Info(l.Message, l.getLogContent()...)
 }
-
 
 // Warn provides developer ability to send useful warning messages into Kinesis logging stream.
-func (d *LogDetails) Warn(message string) error {
+func (l *Logger) Warn(message string) {
 	if message != "" {
-		d.Message = message
+		l.Message = message
 	}
 
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Warn(c)
-
-	return err
+	l.internalLogger.Warn(l.Message, l.getLogContent()...)
 }
-
 
 // Fatal provides developer ability to send application fatal messages into Kinesis logging stream.
-func (d *LogDetails) Fatal(message string) error {
+func (l *Logger) Fatal(message string) {
 	if message != "" {
-		d.Message = message
+		l.Message = message
 	}
 
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Fatal(c)
-
-	return err
+	l.internalLogger.Fatal(l.Message, l.getLogContent()...)
 }
-
 
 // Error provides developer ability to send error  messages into Kinesis logging stream.
-func (d *LogDetails) Error(message string) error {
+func (l *Logger) Error(message string) {
 	if message != "" {
-		d.Message = message
+		l.Message = message
 	}
 
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Error(c)
-
-	return err
+	l.internalLogger.Error(l.Message, l.getLogContent()...)
 }
-
 
 // Panic provides developer ability to send panic  messages into Kinesis logging stream.
-func (d *LogDetails) Panic(message string) error {
+func (l *Logger) Panic(message string) {
 	if message != "" {
-		d.Message = message
+		l.Message = message
 	}
 
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Panic(c)
-
-	return err
+	l.internalLogger.Panic(l.Message, l.getLogContent()...)
 }
 
+// getLogContents aggregates the LogDetails and Logger a slice
+// of typed zap fields
+func (l *Logger) getLogContent() []zap.Field {
 
-func (d *LogDetails) updateEmptyWithParent() {
-	if d.IsReportable == nil {
-		d.IsReportable = d.ParentDetails.IsReportable
+	// We know the log details types so avoid the overhead of marshaling and the errors that come with it.
+	// Passing fields along instead of marshalled JSON also makes all the fields top level instead of all nested under
+	// the logs built in message field
+	s := []zap.Field{
+		zap.Int64("userID", l.UserID),
+		zap.Int64("traceabilityID", l.TraceabilityID),
+		zap.String("endpoint", l.Endpoint),
+		zap.Int64("correlationalID", l.CorrelationalID),
+		zap.Int64("clientID", l.ClientID),
+		zap.String("serviceID", l.serviceID),
+		zap.Bool("isReportable", *l.IsReportable),
 	}
 
-	if d.ClientId == "" {
-		d.ClientId = d.ParentDetails.ClientId
+	for k, v := range l.AdditionalData {
+		s = append(s, getZapType(k, v))
 	}
 
-	if d.CorrelationalId == "" {
-		d.CorrelationalId = d.ParentDetails.CorrelationalId
-	}
-
-	if d.Endpoint == "" {
-		d.Endpoint = d.ParentDetails.Endpoint
-	}
-
-	if d.UserId == "" {
-		d.UserId = d.ParentDetails.UserId
-	}
-
-	if d.Message == "" {
-		d.Message = d.ParentDetails.Message
-	}
-
-	if d.TraceabilityId == "" {
-		d.TraceabilityId = d.ParentDetails.TraceabilityId
-	}
-
-	if d.AdditionalData == nil {
-		d.AdditionalData = d.ParentDetails.AdditionalData
-	}
-
-	if d.hasEmpty() && d.ParentDetails.ParentDetails != nil {
-		d.ParentDetails = d.ParentDetails.ParentDetails
-		d.updateEmptyWithParent()
-	}
+	return s
 }
 
-
-func (d *LogDetails) hasEmpty() bool {
-	hasEmpty := d.IsReportable == nil || d.Message == "" || d.ClientId == "" || d.CorrelationalId == "" || d.Endpoint == "" || d.TraceabilityId == "" || d.UserId == "" || d.AdditionalData == nil
-
-	return hasEmpty
-}
-
-
-// getLogContents aggregates the LogDetails and Logger into a combined map.
-// It returns a json string to insert into an actual log.
-func (d *LogDetails) getLogContent() (string, error) {
-	d.updateEmptyWithParent()
-
-	m := map[string]interface{}{
-		"message":         d.Message,
-		"additionalData":  d.AdditionalData,
-		"userID":          d.UserId,
-		"traceabilityID":  d.TraceabilityId,
-		"endpoint":        d.Endpoint,
-		"correlationalID": d.CorrelationalId,
-		"clientID":        d.ClientId,
-		"serviceID":       d.Logger.serviceId,
-		"isReportable":    d.IsReportable,
+func getZapType(k string, v interface{}) zap.Field {
+	switch v.(type) {
+	case string:
+		s, ok := v.(string)
+		if !ok {
+			// swallow errors and return a placeholder field instead so
+			// an error doesn't take down logging
+			return zap.String(k, "FIELD_TYPE_CONVERSION_ERROR")
+		}
+		return zap.String(k, s)
+	case int64:
+		i, ok := v.(int64)
+		if !ok {
+			return zap.String(k, "FIELD_TYPE_CONVERSION_ERROR")
+		}
+		return zap.Int64(k, i)
+	case bool:
+		// Etc... handle as many types as is necessary for our logging
+		return zap.Bool(k, true)
+	default:
+		return zap.String(k, "FIELD_TYPE_CONVERSION_ERROR")
 	}
-
-	jc, err := json.Marshal(m)
-
-	if err != nil {
-		return "", err
-	}
-
-	return string(jc), nil
 }
-
 
 // newKinesisHook creates a KinesisHook struct to to use in the zap log.
 // Tries to find the existing aws Kinesis stream.
@@ -263,7 +212,6 @@ func (d *LogDetails) getLogContent() (string, error) {
 func newKinesisHook(streamName string, cfg *aws.Config, isProd, isAsync bool) (*KinesisHook, error) {
 	s := session.New(cfg)
 	kc := kinesis.New(s)
-
 
 	_, err := kc.DescribeStream(&kinesis.DescribeStreamInput{StreamName: aws.String(streamName)})
 
@@ -283,19 +231,17 @@ func newKinesisHook(streamName string, cfg *aws.Config, isProd, isAsync bool) (*
 		}
 	}
 
-
 	ks := &KinesisHook{
-		streamName:		streamName,
+		streamName:     streamName,
 		svc:            kc,
 		AcceptedLevels: AllLevels,
 		m:              sync.Mutex{},
-		isProd:			isProd,
-		Async: 			isAsync,
+		isProd:         isProd,
+		Async:          isAsync,
 	}
 
 	return ks, nil
 }
-
 
 // getHook inserts the function to use when zap creates a log entry.
 func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
@@ -308,15 +254,14 @@ func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
 			partKey := "logging-1"
 
 			putOutput, err := ch.svc.PutRecord(&kinesis.PutRecordInput{
-				Data:                      []byte(e.Message),
-				StreamName:                aws.String(ch.streamName),
-				PartitionKey: 			   &partKey,
+				Data:         []byte(e.Message),
+				StreamName:   aws.String(ch.streamName),
+				PartitionKey: &partKey,
 			})
 
 			if err != nil {
 				return err
 			}
-
 
 			// retrieve iterator
 			iteratorOutput, err := ch.svc.GetShardIterator(&kinesis.GetShardIteratorInput{
@@ -339,8 +284,8 @@ func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
 				return err
 			}
 
-			if !ch.isProd  && len(records.Records) > 0 {
-				lastRecord := len(records.Records)  -1
+			if !ch.isProd && len(records.Records) > 0 {
+				lastRecord := len(records.Records) - 1
 				println(records.Records[lastRecord].String())
 			}
 
@@ -358,7 +303,6 @@ func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
 
 	return kWriter, nil
 }
-
 
 // Levels sets which levels to sent to kinesis
 func (ch *KinesisHook) levels() []zapcore.Level {
