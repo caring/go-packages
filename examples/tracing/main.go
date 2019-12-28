@@ -26,5 +26,6 @@ func main() {
 		log.Fatal("Error establishing tracing")
 	}
 
+	// use the tracer someplace
 	opentracing.SetGlobalTracer(t.Tracer)
 }
