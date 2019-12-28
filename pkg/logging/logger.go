@@ -22,7 +22,7 @@ type Logger struct {
 	UserID          int64
 	Endpoint        string
 	AdditionalData  map[string]interface{}
-	IsReportable    *bool
+	IsReportable    bool
 
 	// Internal
 	internalLogger *zap.Logger
@@ -95,9 +95,9 @@ func (l *Logger) GetInternalLogger() *zap.Logger {
 	return l.internalLogger
 }
 
-// SpawnChild creates a new child logger that contains all of the fields already populated in its parent
+// SpawnChildLogger creates a new child logger that contains all of the fields already populated in its parent
 // changes to the child do not affect the parrent and vice-versa
-func (l *Logger) SpawnChild() *Logger {
+func (l *Logger) SpawnChildLogger() *Logger {
 	newL := Logger(*l)
 
 	return &newL
@@ -171,7 +171,7 @@ func (l *Logger) getLogContent() []zap.Field {
 		zap.Int64("correlationalID", l.CorrelationalID),
 		zap.Int64("clientID", l.ClientID),
 		zap.String("serviceID", l.serviceID),
-		zap.Bool("isReportable", *l.IsReportable),
+		zap.Bool("isReportable", l.IsReportable),
 	}
 
 	for k, v := range l.AdditionalData {
@@ -201,7 +201,7 @@ func getZapType(k string, v interface{}) zap.Field {
 		// Etc... handle as many types as is necessary for our logging
 		return zap.Bool(k, true)
 	default:
-		return zap.String(k, "FIELD_TYPE_CONVERSION_ERROR")
+		return zap.String(k, "UNHANDLED_FIELD_TYPE")
 	}
 }
 
