@@ -2,6 +2,7 @@
 package logging
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -13,8 +14,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Logger provides debug, info, warn, panic, & fatal functions to log as well as the schema structure for logging.
-type Logger struct {
+// LogDetails is the schema structure for logging.
+type LogDetails struct {
 	Message string
 	// I don't actually know that these will be int64, just a guess to demonstrate an idea
 	CorrelationalID int64
@@ -22,13 +23,16 @@ type Logger struct {
 	ClientID        int64
 	UserID          int64
 	Endpoint        string
-	AdditionalData  map[string]interface{}
 	IsReportable    bool
+	AdditionalData  map[string]interface{}
+}
 
-	// Internal
+// Logger provides debug, info, warn, panic, & fatal functions to log.
+type Logger struct {
 	internalLogger *zap.Logger
 	serviceID      string
 	writeToKinesis bool
+	parentDetails  LogDetails
 }
 
 // KinesisHook provides the details to hook into the Zap logger
@@ -97,89 +101,101 @@ func (l *Logger) GetInternalLogger() *zap.Logger {
 }
 
 // SpawnChildLogger creates a new child logger that contains all of the fields already populated in its parent
-// changes to the child do not affect the parrent and vice-versa
-func (l *Logger) SpawnChildLogger() *Logger {
+// plus any changes specified in the provided LogDetails . changes to the child do not affect the parrent and vice-versa
+func (l *Logger) SpawnChildLogger(ld LogDetails) *Logger {
 	newL := Logger(*l)
+
+	newL.parentDetails = l.mergeLogDetails(ld)
 
 	return &newL
 }
 
 // Debug provides developer ability to send useful debug related  messages into Kinesis logging stream.
-func (l *Logger) Debug(message string) {
-	if message != "" {
-		l.Message = message
-	}
-
-	l.internalLogger.Debug(l.Message, l.getLogContent()...)
+func (l *Logger) Debug(ld LogDetails) {
+	ld = l.mergeLogDetails(ld)
+	l.internalLogger.Debug(ld.Message, l.getLogContent(ld)...)
 }
 
 // Info provides developer ability to send general info  messages into Kinesis logging stream.
-func (l *Logger) Info(message string) {
-	if message != "" {
-		l.Message = message
-	}
-
-	l.internalLogger.Info(l.Message, l.getLogContent()...)
+func (l *Logger) Info(ld LogDetails) {
+	ld = l.mergeLogDetails(ld)
+	l.internalLogger.Info(ld.Message, l.getLogContent(ld)...)
 }
 
 // Warn provides developer ability to send useful warning messages into Kinesis logging stream.
-func (l *Logger) Warn(message string) {
-	if message != "" {
-		l.Message = message
-	}
-
-	l.internalLogger.Warn(l.Message, l.getLogContent()...)
+func (l *Logger) Warn(ld LogDetails) {
+	ld = l.mergeLogDetails(ld)
+	l.internalLogger.Warn(ld.Message, l.getLogContent(ld)...)
 }
 
 // Fatal provides developer ability to send application fatal messages into Kinesis logging stream.
-func (l *Logger) Fatal(message string) {
-	if message != "" {
-		l.Message = message
-	}
-
-	l.internalLogger.Fatal(l.Message, l.getLogContent()...)
+func (l *Logger) Fatal(ld LogDetails) {
+	ld = l.mergeLogDetails(ld)
+	l.internalLogger.Fatal(ld.Message, l.getLogContent(ld)...)
 }
 
 // Error provides developer ability to send error  messages into Kinesis logging stream.
-func (l *Logger) Error(message string) {
-	if message != "" {
-		l.Message = message
-	}
-
-	l.internalLogger.Error(l.Message, l.getLogContent()...)
+func (l *Logger) Error(ld LogDetails) {
+	ld = l.mergeLogDetails(ld)
+	l.internalLogger.Error(ld.Message, l.getLogContent(ld)...)
 }
 
 // Panic provides developer ability to send panic  messages into Kinesis logging stream.
-func (l *Logger) Panic(message string) {
-	if message != "" {
-		l.Message = message
-	}
-
-	l.internalLogger.Panic(l.Message, l.getLogContent()...)
+func (l *Logger) Panic(ld LogDetails) {
+	ld = l.mergeLogDetails(ld)
+	l.internalLogger.Panic(ld.Message, l.getLogContent(ld)...)
 }
 
 // getLogContents aggregates the LogDetails and Logger a slice
 // of typed zap fields
-func (l *Logger) getLogContent() []zap.Field {
-
+func (l *Logger) getLogContent(ld LogDetails) []zap.Field {
 	// We know the log details types so avoid the overhead of marshaling and the errors that come with it.
 	// Passing fields along instead of marshalled JSON also makes all the fields top level instead of all nested under
 	// the logs built in message field
 	s := []zap.Field{
-		zap.Int64("userID", l.UserID),
-		zap.Int64("traceabilityID", l.TraceabilityID),
-		zap.String("endpoint", l.Endpoint),
-		zap.Int64("correlationalID", l.CorrelationalID),
-		zap.Int64("clientID", l.ClientID),
-		zap.String("serviceID", l.serviceID),
-		zap.Bool("isReportable", l.IsReportable),
+		zap.Int64("userId", ld.UserID),
+		zap.Int64("traceabilityId", ld.TraceabilityID),
+		zap.String("endpoint", ld.Endpoint),
+		zap.Int64("correlationalId", ld.CorrelationalID),
+		zap.Int64("clientId", ld.ClientID),
+		zap.String("serviceId", l.serviceID),
+		zap.Bool("isReportable", ld.IsReportable),
 	}
 
-	for k, v := range l.AdditionalData {
+	for k, v := range ld.AdditionalData {
 		s = append(s, getZapType(k, v))
 	}
 
 	return s
+}
+
+// Takes input log details and backfills any empty fields with parent details in the logger
+func (l *Logger) mergeLogDetails(ld LogDetails) LogDetails {
+	if ld.Message == "" {
+		ld.Message = l.parentDetails.Message
+	}
+	if ld.CorrelationalID == 0 {
+		ld.CorrelationalID = l.parentDetails.CorrelationalID
+	}
+	if ld.TraceabilityID == 0 {
+		ld.TraceabilityID = l.parentDetails.TraceabilityID
+	}
+	if ld.ClientID == 0 {
+		ld.ClientID = l.parentDetails.ClientID
+	}
+	if ld.UserID == 0 {
+		ld.UserID = l.parentDetails.UserID
+	}
+	if ld.Endpoint == "" {
+		ld.Endpoint = l.parentDetails.Endpoint
+	}
+	if ld.IsReportable == false {
+		ld.IsReportable = l.parentDetails.IsReportable
+	}
+	if len(ld.AdditionalData) == 0 {
+		ld.AdditionalData = l.parentDetails.AdditionalData
+	}
+	return ld
 }
 
 func getZapType(k string, v interface{}) zap.Field {
@@ -188,7 +204,7 @@ func getZapType(k string, v interface{}) zap.Field {
 		s, ok := v.(string)
 		if !ok {
 			// swallow errors and return a placeholder field instead so
-			// an error doesn't take down logging
+			// an error doesn't cause an entire log write of data to be lost in the warehouse
 			return zap.String(fmt.Sprint("ErrField", k), "FIELD_TYPE_CONVERSION_ERROR")
 		}
 		return zap.String(k, s)
@@ -199,8 +215,23 @@ func getZapType(k string, v interface{}) zap.Field {
 		}
 		return zap.Int64(k, i)
 	case bool:
-		// Etc... handle as many types as is necessary for our logging
-		return zap.Bool(k, true)
+		b, ok := v.(bool)
+		if !ok {
+			return zap.String(fmt.Sprint("ErrField", k), "FIELD_TYPE_CONVERSION_ERROR")
+		}
+		return zap.Bool(k, b)
+	case float64:
+		f, ok := v.(float64)
+		if !ok {
+			return zap.String(fmt.Sprint("ErrField", k), "FIELD_TYPE_CONVERSION_ERROR")
+		}
+		return zap.Float64(k, f)
+	case map[string]interface{}:
+		j, err := json.Marshal(v)
+		if err != nil {
+			return zap.String(fmt.Sprint("ErrField", k), "FIELD_TYPE_CONVERSION_ERROR")
+		}
+		return zap.String(k, string(j))
 	default:
 		return zap.String(fmt.Sprint("ErrField", k), "UNHANDLED_FIELD_TYPE")
 	}
