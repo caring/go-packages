@@ -53,12 +53,11 @@ func (t *jTracing) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor
 // serviceName: The name of the service (app) in tracing messages
 // transportDestination: The jaeger server where we are sending the remote reporting to if enabled. <host>:<port> ie "localhost:3001"
 // reportRemote: True enables remote reporting
+// isProd: Specifies to configure the tracer with production options
 // logger: accepts the caring logger to use for logging tracing reporting
 // metricTags: Key value tags appended to the tracing logs
-// lowerBound: The guaranteed minimum amount samples per endpoint per timeframe. See jaeger client docs https://github.com/jaegertracing/jaeger-client-go/blob/master/sampler.go#L241
-// sampleRate: The percentage of samples to report expressed as a float between 0.0 and 1.0
 //
-func NewTracing(serviceName, transportDestination string, reportRemote bool, logger logging.LogDetails, metricTags map[string]string, lowerBound, sampleRate float64) (Tracing, error) {
+func NewTracing(serviceName, reportingDestination string, reportRemote, isProd bool, logger logging.LogDetails, metricTags map[string]string) (Tracing, error) {
 	t := jTracing{}
 
 	// create a metrics object
@@ -68,7 +67,7 @@ func NewTracing(serviceName, transportDestination string, reportRemote bool, log
 	if reportRemote {
 		// If we want to report to a remote tracing analytics server
 		// create the connection here
-		transport, err := jaeger.NewUDPTransport(transportDestination, 0)
+		transport, err := jaeger.NewUDPTransport(reportingDestination, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -87,8 +86,16 @@ func NewTracing(serviceName, transportDestination string, reportRemote bool, log
 		t.reporter = jaeger.NewLoggingReporter(logger.NewJaegerLogger())
 	}
 
+	var sampleRate float64
+	if isProd {
+		// Only trace 10% of requests in prod
+		sampleRate = 0.1
+	} else {
+		sampleRate = 1.0
+	}
+
 	// create a sampler for the spans so that we don't report every single span which would be untenable
-	sampler, err := jaeger.NewGuaranteedThroughputProbabilisticSampler(lowerBound, sampleRate)
+	sampler, err := jaeger.NewGuaranteedThroughputProbabilisticSampler(1.0, sampleRate)
 	if err != nil {
 		return nil, err
 	}
