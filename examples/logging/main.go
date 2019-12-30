@@ -1,79 +1,24 @@
 package main
 
-import (
-	"github.com/caring/go-packages/pkg/logging"
-)
+import "github.com/caring/go-packages/pkg/logging"
 
 func main() {
-	l, err := logging.InitLogger(false, "logger-1", "my-kinesis-stream", "aws-access-key", "aws-secret-key", "aws-region")
-	
+	l, err := logging.InitLogging(false, "logger-1", "stream-1", "call-scoring", "aws-key", "aws-secret", "aws-region", true, true)
+
 	if err != nil {
 		panic(err)
 	}
-	
-	l.Warn(logging.LogDetails{
-		Message:         "failed to do some",
-		ServiceId:       "sample-service",
-		CorrelationalId: "sample-correlation",
-		TraceabilityId:  "trace-id",
-		ClientId:        "client-id",
-		UserId:          "userID",
-		Endpoint:        "myurl.com@methodName",
-		AdditionalData: map[string]string{"additional-content": "value-1"},
-	})
 
-	l.Error(logging.LogDetails{
-		Message:         "failed to do some",
-		ServiceId:       "sample-service",
-		CorrelationalId: "sample-correlation",
-		TraceabilityId:  "trace-id",
-		ClientId:        "client-id",
-		UserId:          "userID",
-		Endpoint:        "myurl.com@methodName",
-		AdditionalData: map[string]string{"additional-content": "value-1"},
-	})
+	l.NewChild("", "endpoint2", 3, 3, 2, 1, false, nil)
 
-	l.Fatal(logging.LogDetails{
-		Message:         "failed to do some",
-		ServiceId:       "sample-service",
-		CorrelationalId: "sample-correlation",
-		TraceabilityId:  "trace-id",
-		ClientId:        "client-id",
-		UserId:          "userID",
-		Endpoint:        "myurl.com@methodName",
-		AdditionalData: map[string]string{"additional-content": "value-1"},
-	})
+	l.Warn("sample message", map[string]logging.Field{"fieldA": logging.NewInt64Field("fieldA", 3)})
 
-	l.Panic(logging.LogDetails{
-		Message:         "failed to do some",
-		ServiceId:       "sample-service",
-		CorrelationalId: "sample-correlation",
-		TraceabilityId:  "trace-id",
-		ClientId:        "client-id",
-		UserId:          "userID",
-		Endpoint:        "myurl.com@methodName",
-		AdditionalData: map[string]string{"additional-content": "value-1"},
-	})
+	l.AppendAdditionalData(map[string]logging.Field{"fieldB": logging.NewBoolField("fieldB", true)})
 
-	l.Info(logging.LogDetails{
-		Message:         "failed to do some",
-		ServiceId:       "sample-service",
-		CorrelationalId: "sample-correlation",
-		TraceabilityId:  "trace-id",
-		ClientId:        "client-id",
-		UserId:          "userID",
-		Endpoint:        "myurl.com@methodName",
-		AdditionalData: map[string]string{"additional-content": "value-1"},
-	})
+	l.Warn("here's another waring", nil)
 
-	l.Debug(logging.LogDetails{
-		Message:         "failed to do some",
-		ServiceId:       "sample-service",
-		CorrelationalId: "sample-correlation",
-		TraceabilityId:  "trace-id",
-		ClientId:        "client-id",
-		UserId:          "userID",
-		Endpoint:        "myurl.com@methodName",
-		AdditionalData: map[string]string{"additional-content": "value-1"},
-	})
+	l.SetIsReportable(true)
+	l.SetAdditionalData(nil)
+
+	l.Warn("final warning", nil)
 }

@@ -36,6 +36,7 @@ type LogDetails struct {
 	logger *Logger
 }
 
+// TracerLogger provides wrapper structure for external tracing package.
 type TracerLogger struct {
 	InfoF	func(message string, args ...interface{})
 	Error	func(message string)
@@ -53,6 +54,7 @@ type KinesisHook struct {
 	serviceID		string
 }
 
+// Field provides a wrapping struct to be used internally to log indexable fields.
 type Field struct {
 	field zap.Field
 }
@@ -60,7 +62,7 @@ type Field struct {
 
 // InitLogger initializes a new logger.
 // Connects into AWS and sets up a kinesis service.
-// It returns a new logger instance and any errors upon initialization.
+// It returns a new LogDetails instance that can be used as the initial parent for all application logging.
 func InitLogging(
 	isProd bool,
 	loggerName,
@@ -124,6 +126,7 @@ func InitLogging(
 	return ld, nil
 }
 
+// NewStringField creates an string field used for log indexing.
 func NewStringField(k, v string) Field {
 	f := Field{}
 	s := zap.String(k, v)
@@ -132,6 +135,7 @@ func NewStringField(k, v string) Field {
 	return f
 }
 
+// NewInt64Field creates an int64 field used for log indexing.
 func NewInt64Field(k string, v int64) Field {
 	f := Field{}
 	i := zap.Int64(k, v)
@@ -140,6 +144,7 @@ func NewInt64Field(k string, v int64) Field {
 	return f
 }
 
+// NewBoolField creates a bool field used for log indexing.
 func NewBoolField(k string, v bool) Field {
 	f := Field{}
 	b := zap.Bool(k, v)
@@ -154,7 +159,9 @@ func (l *Logger) GetInternalLogger() *zap.Logger {
 	return l.internalLogger
 }
 
-
+// NewChild creates a new child LogDetails struct based on the current.
+// It clones the existing one and updates with any non-zero parameters.
+// Returns a pointer reference to the new child LogDetails instance.
 func (d *LogDetails) NewChild(
 	serviceID,
 	endpoint string,
@@ -197,52 +204,72 @@ func (d *LogDetails) NewChild(
 	return ld
 }
 
+// SetEndpoint sets the endpoint string to the existing LogDetails instance.
 func (d *LogDetails) SetEndpoint(endpoint string) *LogDetails {
 	d.endpoint = endpoint
 
 	return d
 }
 
+// SetServiceID sets the serviceID string to the existing LogDetails instance.
 func (d *LogDetails) SetServiceID(serviceID string) *LogDetails {
 	d.serviceID = serviceID
 
 	return d
 }
 
-
+// SetCorrelationalID sets the int64 to the LogDetails instance.
 func (d *LogDetails) SetCorrelationalID(correlationalID int64) *LogDetails {
 	d.correlationalID = correlationalID
 
 	return d
 }
 
+
+// SetClientID sets the string to the LogDetails instance.
 func (d *LogDetails) SetClientID(clientID int64) *LogDetails {
 	d.clientID = clientID
 
 	return d
 }
 
+// SetTraceabilityID sets the int64 to the LogDetails instance.
 func (d *LogDetails) SetTraceabilityID(traceabilityID int64) *LogDetails {
 	d.traceabilityID = traceabilityID
 
 	return d
 }
 
+// SetUserID sets the int64 userID to the LogDetails instance.
 func (d *LogDetails) SetUserID(userID int64) *LogDetails {
 	d.userID = userID
 
 	return d
 }
 
+// SetIsReportable sets the boolean isReportable to the LogDetails instance.
 func (d *LogDetails) SetIsReportable(isReportable bool) *LogDetails {
 	d.isReportable = isReportable
 
 	return d
 }
 
-
+// SetAdditionalData sets the additionalData map to the LogDetails instance.
 func (d *LogDetails) SetAdditionalData(additionalData map[string]Field) *LogDetails {
 	d.additionalData = additionalData
+
+	return d
+}
+
+// AppendAdditionalData appends LogDetails additionalData map with new fields.
+func (d *LogDetails) AppendAdditionalData(additionalData map[string]Field) *LogDetails {
+	if d.additionalData == nil {
+		d.additionalData = additionalData
+	} else if additionalData != nil {
+		for k, v := range additionalData {
+			d.additionalData[k] = v
+		}
+	}
 
 	return d
 }
@@ -320,18 +347,19 @@ func (d *LogDetails) Panic(message string, additionalData map[string]Field) {
 // getLogContents aggregates the LogDetails and Logger into a combined map.
 // It returns a json string to insert into an actual log.
 func (d *LogDetails) getLogContent(additionalData map[string]Field) []zap.Field {
-	if d.additionalData == nil {
-		d.additionalData = additionalData
+	ad := d.additionalData
+	if ad == nil {
+		ad = additionalData
 	} else if additionalData != nil {
 		for k, v := range additionalData {
-			d.additionalData[k] = v
+			ad[k] = v
 		}
 	}
 
 	sliceTotal := 7
 
-	if d.additionalData != nil && len(d.additionalData) > 0 {
-		sliceTotal = sliceTotal + len(d.additionalData)
+	if ad != nil && len(ad) > 0 {
+		sliceTotal = sliceTotal + len(ad)
 	}
 
 	fields := make([]zap.Field, sliceTotal)
@@ -345,9 +373,9 @@ func (d *LogDetails) getLogContent(additionalData map[string]Field) []zap.Field 
 	fields[6] = NewInt64Field("clientID", d.clientID).field
 
 
-	if d.additionalData != nil {
+	if ad != nil {
 		ind := 7
-		for _, fieldData := range d.additionalData {
+		for _, fieldData := range ad {
 			fields[ind] = fieldData.field
 			ind++
 		}
