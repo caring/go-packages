@@ -10,8 +10,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
+	jaeger_zap "github.com/uber/jaeger-client-go/log/zap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"google.golang.org/grpc"
 )
 
 // LogDetails is the schema structure for logging.
@@ -93,6 +96,33 @@ func InitLogger(isProd bool, loggerName, streamName, serviceID, awsAccessKey, aw
 	}
 
 	return l, nil
+}
+
+// NewJaegerLogger creates a logger that implements the jaeger logger interface
+// and is populated by both the loggers parent fields and the log details provided
+func (l *Logger) NewJaegerLogger(ld LogDetails) *jaeger_zap.Logger {
+	ld = l.mergeLogDetails(ld)
+	populatedL := l.internalLogger.With(l.getLogContent(ld)...)
+
+	return jaeger_zap.NewLogger(populatedL)
+}
+
+// NewGRPCUnaryServerInterceptor creates a gRPC unary interceptor that is wrapped around
+// the internal logger populated with its parents fields and any provided log details
+func (l *Logger) NewGRPCUnaryServerInterceptor(ld LogDetails) grpc.UnaryServerInterceptor {
+	ld = l.mergeLogDetails(ld)
+	populatedL := l.internalLogger.With(l.getLogContent(ld)...)
+
+	return grpc_zap.UnaryServerInterceptor(populatedL)
+}
+
+// NewGRPCStreamServerInterceptor creates a gRPC stream interceptor that is wrapped around
+// the internal logger populated with its parents fields and any provided log details
+func (l *Logger) NewGRPCStreamServerInterceptor(ld LogDetails) grpc.StreamServerInterceptor {
+	ld = l.mergeLogDetails(ld)
+	populatedL := l.internalLogger.With(l.getLogContent(ld)...)
+
+	return grpc_zap.StreamServerInterceptor(populatedL)
 }
 
 // GetInternalLogger returns the zap internal logger pointer
