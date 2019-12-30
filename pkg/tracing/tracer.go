@@ -5,9 +5,7 @@ import (
 
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
-	jaeger_zap "github.com/uber/jaeger-client-go/log/zap"
 	"github.com/uber/jaeger-lib/metrics/prometheus"
-	"go.uber.org/zap"
 )
 
 // Tracing contains all of the tracing object and methods needed to interact with
@@ -35,11 +33,8 @@ func (t *Tracing) CloseTracing() error {
 // lowerBound: The guaranteed minimum amount samples per endpoint per timeframe. See jaeger client docs https://github.com/jaegertracing/jaeger-client-go/blob/master/sampler.go#L241
 // sampleRate: The percentage of samples to report expressed as a float between 0.0 and 1.0
 //
-func NewTracer(serviceName, transportDestination string, reportRemote bool, logger *zap.Logger, metricTags map[string]string, lowerBound, sampleRate float64) (*Tracing, error) {
+func NewTracer(serviceName, transportDestination string, reportRemote bool, logger jaeger.Logger, metricTags map[string]string, lowerBound, sampleRate float64) (*Tracing, error) {
 	t := Tracing{}
-
-	// Adapt the zap logger to work with jaeger
-	adaptedLogger := jaeger_zap.NewLogger(logger)
 
 	// create a metrics object
 	factory := prometheus.New()
@@ -56,15 +51,15 @@ func NewTracer(serviceName, transportDestination string, reportRemote bool, logg
 		// create composite logger to log to the logger and report to the
 		// remote server
 		t.reporter = jaeger.NewCompositeReporter(
-			jaeger.NewLoggingReporter(adaptedLogger),
+			jaeger.NewLoggingReporter(logger),
 			jaeger.NewRemoteReporter(transport,
 				jaeger.ReporterOptions.Metrics(metrics),
-				jaeger.ReporterOptions.Logger(adaptedLogger),
+				jaeger.ReporterOptions.Logger(logger),
 			),
 		)
 	} else {
 		// Simple, logging only reporter
-		t.reporter = jaeger.NewLoggingReporter(adaptedLogger)
+		t.reporter = jaeger.NewLoggingReporter(logger)
 	}
 
 	// create a sampler for the spans so that we don't report every single span which would be untenable
