@@ -16,23 +16,22 @@ import (
 // Logger provides debug, info, warn, panic, & fatal functions to log.
 type Logger struct {
 	internalLogger *zap.Logger
-	serviceId string
 	writeToKinesis bool
 }
 
 
 // LogDetails is the schema structure for logging.
 type LogDetails struct {
-	Message string
-	CorrelationalId string
-	TraceabilityId string
-	ClientId string
-	UserId string
-	Endpoint string
-	AdditionalData map[string]interface{}
-	IsReportable *bool
-	ParentDetails *LogDetails
-	Logger *Logger
+	serviceID string
+	correlationalId string
+	traceabilityId string
+	clientId string
+	userId string
+	endpoint string
+	additionalData map[string]interface{}
+	isReportable *bool
+	parentDetails *LogDetails
+	logger *Logger
 }
 
 
@@ -51,9 +50,24 @@ type KinesisHook struct {
 // InitLogger initializes a new logger.
 // Connects into AWS and sets up a kinesis service.
 // It returns a new logger instance and any errors upon initialization.
-func InitLogger(isProd bool, loggerName, streamName, serviceID, awsAccessKey, awsSecretKey, awsRegion string, isAsync, writeToKinesis bool) (Logger, error) {
+func InitLogging(
+	isProd bool,
+	loggerName,
+	streamName,
+	serviceID,
+	awsAccessKey,
+	awsSecretKey,
+	awsRegion string,
+	isAsync,
+	writeToKinesis bool) (LogDetails, error) {
 	l := Logger{}
-	l.serviceId = serviceID
+	ld := LogDetails{
+		serviceID:       serviceID,
+		additionalData:  nil,
+		isReportable:    nil,
+		parentDetails:   nil,
+		logger:          nil,
+	}
 
 	cred := credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, "")
 	cfg := aws.NewConfig().WithRegion(awsRegion).WithCredentials(cred)
@@ -61,13 +75,13 @@ func InitLogger(isProd bool, loggerName, streamName, serviceID, awsAccessKey, aw
 	kcHookConstructor, err := newKinesisHook(streamName, cfg, isProd, isAsync)
 
 	if kcHookConstructor == nil {
-		return l, err
+		return ld, err
 	}
 
 	kcHook, err := kcHookConstructor.getHook()
 
 	if err != nil {
-		return l, err
+		return ld, err
 	}
 
 	if isProd {
@@ -94,7 +108,9 @@ func InitLogger(isProd bool, loggerName, streamName, serviceID, awsAccessKey, aw
 		l.internalLogger = logger
 	}
 
-	return l, nil
+	ld.logger = &l
+
+	return ld, nil
 }
 
 
@@ -104,126 +120,142 @@ func (l *Logger) GetInternalLogger() *zap.Logger {
 }
 
 
-// Debug provides developer ability to send useful debug related  messages into Kinesis logging stream.
-func (d *LogDetails) Debug(message string) error {
-	if message != "" {
-		d.Message = message
+func (d *LogDetails) NewChild(serviceID, correlationalID, traceabilityID, clientID, userID, endpoint string, isReportable *bool, additionalData map[string]interface{}) *LogDetails {
+	ld := d
+	ld.parentDetails = d
+
+	if serviceID != "" {
+		ld.serviceID = serviceID
 	}
 
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Debug(c)
+	if correlationalID != "" {
+		ld.correlationalId = correlationalID
+	}
+
+	if traceabilityID != "" {
+		ld.traceabilityId = traceabilityID
+	}
+
+	if clientID != "" {
+		ld.clientId = clientID
+	}
+
+	if userID != "" {
+		ld.userId = userID
+	}
+
+	if isReportable != nil {
+		ld.isReportable = isReportable
+	}
+
+	if additionalData != nil {
+		ld.additionalData = additionalData
+	}
+
+	return ld
+}
+
+func (d *LogDetails) SetServiceID(serviceID string) *LogDetails {
+	d.serviceID = serviceID
+
+	return d
+}
+
+
+func (d *LogDetails) SetCorrelationalID(correlationalID string) *LogDetails {
+	d.correlationalId = correlationalID
+
+	return d
+}
+
+func (d *LogDetails) SetClientID(clientID string) *LogDetails {
+	d.clientId = clientID
+
+	return d
+}
+
+func (d *LogDetails) SetTraceabilityID(traceabilityID string) *LogDetails {
+	d.traceabilityId = traceabilityID
+
+	return d
+}
+
+func (d *LogDetails) SetUserID(userID string) *LogDetails {
+	d.userId = userID
+
+	return d
+}
+
+func (d *LogDetails) SetIsReportable(isReportable *bool) *LogDetails {
+	d.isReportable = isReportable
+
+	return d
+}
+
+
+func (d *LogDetails) SetAdditionalData(additionalData map[string]interface{}) *LogDetails {
+	d.additionalData = additionalData
+
+	return d
+}
+
+
+// Debug provides developer ability to send useful debug related  messages into Kinesis logging stream.
+func (d *LogDetails) Debug(message string, additionalData map[string]interface{}) error {
+	c, err := d.getLogContent(message, additionalData)
+	d.logger.GetInternalLogger().Debug(c)
 
 	return err
 }
 
 
 // Info provides developer ability to send general info  messages into Kinesis logging stream.
-func (d *LogDetails) Info(message string) error {
-	if message != "" {
-		d.Message = message
-	}
-
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Info(c)
+func (d *LogDetails) Info(message string, additionalData map[string]interface{}) error {
+	c, err := d.getLogContent(message, additionalData)
+	d.logger.GetInternalLogger().Info(c)
 
 	return err
 }
 
 
 // Warn provides developer ability to send useful warning messages into Kinesis logging stream.
-func (d *LogDetails) Warn(message string) error {
-	if message != "" {
-		d.Message = message
-	}
-
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Warn(c)
+func (d *LogDetails) Warn(message string, additionalData map[string]interface{}) error {
+	c, err := d.getLogContent(message, additionalData)
+	d.logger.GetInternalLogger().Warn(c)
 
 	return err
 }
 
 
 // Fatal provides developer ability to send application fatal messages into Kinesis logging stream.
-func (d *LogDetails) Fatal(message string) error {
-	if message != "" {
-		d.Message = message
-	}
-
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Fatal(c)
+func (d *LogDetails) Fatal(message string, additionalData map[string]interface{}) error {
+	c, err := d.getLogContent(message, additionalData)
+	d.logger.GetInternalLogger().Fatal(c)
 
 	return err
 }
 
 
 // Error provides developer ability to send error  messages into Kinesis logging stream.
-func (d *LogDetails) Error(message string) error {
-	if message != "" {
-		d.Message = message
-	}
-
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Error(c)
+func (d *LogDetails) Error(message string, additionalData map[string]interface{}) error {
+	c, err := d.getLogContent(message, additionalData)
+	d.logger.GetInternalLogger().Error(c)
 
 	return err
 }
 
 
 // Panic provides developer ability to send panic  messages into Kinesis logging stream.
-func (d *LogDetails) Panic(message string) error {
-	if message != "" {
-		d.Message = message
-	}
-
-	c, err := d.getLogContent()
-	d.Logger.GetInternalLogger().Panic(c)
+func (d *LogDetails) Panic(message string, additionalData map[string]interface{}) error {
+	c, err := d.getLogContent(message, additionalData)
+	d.logger.GetInternalLogger().Panic(c)
 
 	return err
 }
 
 
-func (d *LogDetails) updateEmptyWithParent() {
-	if d.IsReportable == nil {
-		d.IsReportable = d.ParentDetails.IsReportable
-	}
-
-	if d.ClientId == "" {
-		d.ClientId = d.ParentDetails.ClientId
-	}
-
-	if d.CorrelationalId == "" {
-		d.CorrelationalId = d.ParentDetails.CorrelationalId
-	}
-
-	if d.Endpoint == "" {
-		d.Endpoint = d.ParentDetails.Endpoint
-	}
-
-	if d.UserId == "" {
-		d.UserId = d.ParentDetails.UserId
-	}
-
-	if d.Message == "" {
-		d.Message = d.ParentDetails.Message
-	}
-
-	if d.TraceabilityId == "" {
-		d.TraceabilityId = d.ParentDetails.TraceabilityId
-	}
-
-	if d.AdditionalData == nil {
-		d.AdditionalData = d.ParentDetails.AdditionalData
-	}
-
-	if d.hasEmpty() && d.ParentDetails.ParentDetails != nil {
-		d.ParentDetails = d.ParentDetails.ParentDetails
-		d.updateEmptyWithParent()
-	}
-}
-
-
 func (d *LogDetails) hasEmpty() bool {
-	hasEmpty := d.IsReportable == nil || d.Message == "" || d.ClientId == "" || d.CorrelationalId == "" || d.Endpoint == "" || d.TraceabilityId == "" || d.UserId == "" || d.AdditionalData == nil
+	hasEmpty := d.isReportable == nil || d.clientId == "" || d.correlationalId == "" || d.endpoint == "" || d.traceabilityId == "" || d.userId == "" || d.additionalData == nil
 
 	return hasEmpty
 }
@@ -231,19 +263,25 @@ func (d *LogDetails) hasEmpty() bool {
 
 // getLogContents aggregates the LogDetails and Logger into a combined map.
 // It returns a json string to insert into an actual log.
-func (d *LogDetails) getLogContent() (string, error) {
-	d.updateEmptyWithParent()
+func (d *LogDetails) getLogContent(message string, additionalData map[string]interface{}) (string, error) {
+	if d.additionalData == nil {
+		d.additionalData = additionalData
+	} else if additionalData != nil {
+		for k, v := range additionalData {
+			d.additionalData[k] = v
+		}
+	}
 
 	m := map[string]interface{}{
-		"message":         d.Message,
-		"additionalData":  d.AdditionalData,
-		"userID":          d.UserId,
-		"traceabilityID":  d.TraceabilityId,
-		"endpoint":        d.Endpoint,
-		"correlationalID": d.CorrelationalId,
-		"clientID":        d.ClientId,
-		"serviceID":       d.Logger.serviceId,
-		"isReportable":    d.IsReportable,
+		"message":         message,
+		"additionalData":  d.additionalData,
+		"userID":          d.userId,
+		"traceabilityID":  d.traceabilityId,
+		"endpoint":        d.endpoint,
+		"correlationalID": d.correlationalId,
+		"clientID":        d.clientId,
+		"serviceID":       d.serviceID,
+		"isReportable":    d.isReportable,
 	}
 
 	jc, err := json.Marshal(m)
