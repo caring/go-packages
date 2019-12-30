@@ -2,6 +2,7 @@
 package logging
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -188,20 +189,20 @@ func getZapType(k string, v interface{}) zap.Field {
 		if !ok {
 			// swallow errors and return a placeholder field instead so
 			// an error doesn't take down logging
-			return zap.String(k, "FIELD_TYPE_CONVERSION_ERROR")
+			return zap.String(fmt.Sprint("ErrField", k), "FIELD_TYPE_CONVERSION_ERROR")
 		}
 		return zap.String(k, s)
 	case int64:
 		i, ok := v.(int64)
 		if !ok {
-			return zap.String(k, "FIELD_TYPE_CONVERSION_ERROR")
+			return zap.String(fmt.Sprint("ErrField", k), "FIELD_TYPE_CONVERSION_ERROR")
 		}
 		return zap.Int64(k, i)
 	case bool:
 		// Etc... handle as many types as is necessary for our logging
 		return zap.Bool(k, true)
 	default:
-		return zap.String(k, "UNHANDLED_FIELD_TYPE")
+		return zap.String(fmt.Sprint("ErrField", k), "UNHANDLED_FIELD_TYPE")
 	}
 }
 
