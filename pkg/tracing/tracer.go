@@ -11,43 +11,43 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Tracing provides an interface by which to interact with the tracing objects created by this package
-type Tracing interface {
+// TracerObjects provides an interface by which to interact with the tracing objects created by this package
+type TracerObjects interface {
 	CloseTracing() error
 	GetInternalTracer() *opentracing.Tracer
 	NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor
 	NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor
 }
 
-// JTracing implements the Tracing interface using the jaeger tracing package
-type jTracing struct {
+// jaegerT implements the Tracing interface using the jaeger tracing package
+type jaegerT struct {
 	tracer        opentracing.Tracer
 	reporter      jaeger.Reporter
 	tracingCloser io.Closer
 }
 
 // CloseTracing closes the tracing and reporting objects
-func (t *jTracing) CloseTracing() error {
+func (t *jaegerT) CloseTracing() error {
 	t.reporter.Close()
 	return t.tracingCloser.Close()
 }
 
 // GetInternalTracer returns a pointer to the internal tracer
-func (t *jTracing) GetInternalTracer() *opentracing.Tracer {
+func (t *jaegerT) GetInternalTracer() *opentracing.Tracer {
 	return &t.tracer
 }
 
 // NewGRPCUnaryServerInterceptor returns a gRPC interceptor wrapped around the internal tracer
-func (t *jTracing) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
+func (t *jaegerT) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(t.tracer))
 }
 
 // NewGRPCStreamServerInterceptor returns a gRPC stream interceptor wrapped around the internal tracer
-func (t *jTracing) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
+func (t *jaegerT) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
 	return grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(t.tracer))
 }
 
-// NewTracing configures a jaeger tracing setup and returns the the configured tracer and reporter for use
+// NewTracerInterface configures a jaeger tracing setup and returns the the configured tracer and reporter for use
 //
 // Arguments:
 // serviceName: The name of the service (app) in tracing messages
@@ -57,8 +57,8 @@ func (t *jTracing) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor
 // logger: accepts the caring logger to use for logging tracing reporting
 // metricTags: Key value tags appended to the tracing logs
 //
-func NewTracing(serviceName, reportingDestination string, reportRemote, isProd bool, logger logging.LogDetails, metricTags map[string]string) (Tracing, error) {
-	t := jTracing{}
+func NewTracerInterface(serviceName, reportingDestination string, reportRemote, isProd bool, logger logging.LogDetails, metricTags map[string]string) (TracerObjects, error) {
+	t := jaegerT{}
 
 	// create a metrics object
 	factory := prometheus.New()

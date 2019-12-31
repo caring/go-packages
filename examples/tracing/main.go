@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	t, err := tracing.NewTracing(
+	t, err := tracing.NewTracerInterface(
 		"my-service",
 		"hostname:6451",
 		false,
