@@ -13,9 +13,14 @@ import (
 
 // TracerObjects provides an interface by which to interact with the tracing objects created by this package
 type TracerObjects interface {
+	// CloseTracing closes the tracing and reporting objects that
+	// are constructed within the tracing package
 	CloseTracing() error
+	// GetInternalTracer returns a pointer to the internal tracer
 	GetInternalTracer() *opentracing.Tracer
+	// NewGRPCUnaryServerInterceptor returns a gRPC interceptor wrapped around the internal tracer
 	NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor
+	// NewGRPCStreamServerInterceptor returns a gRPC stream interceptor wrapped around the internal tracer
 	NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor
 }
 
