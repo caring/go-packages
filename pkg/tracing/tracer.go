@@ -16,7 +16,9 @@ type TracerObjects interface {
 	// CloseTracing closes the tracing and reporting objects that
 	// are constructed within the tracing package
 	CloseTracing() error
-	// GetInternalTracer returns a pointer to the internal tracer
+	// GetInternalTracer returns a pointer to the internal tracer.
+	//
+	// Use this method with caution!!! The internal tracer may change at any time.
 	GetInternalTracer() *opentracing.Tracer
 	// NewGRPCUnaryServerInterceptor returns a gRPC interceptor wrapped around the internal tracer
 	NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor
