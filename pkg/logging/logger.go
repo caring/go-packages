@@ -2,6 +2,8 @@
 package logging
 
 import (
+	"sync"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -12,7 +14,6 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
-	"sync"
 )
 
 // Logger provides debug, info, warn, panic, & fatal functions to log.
@@ -29,7 +30,7 @@ type LogDetails struct {
 	clientID        int64
 	userID          int64
 	endpoint        string
-	additionalData  map[string]Field
+	additionalData  []Field
 	isReportable    bool
 	parentDetails   *LogDetails
 	logger          *Logger
@@ -73,44 +74,56 @@ func InitLogging(
 		logger:         nil,
 	}
 
-	cred := credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, "")
-	cfg := aws.NewConfig().WithRegion(awsRegion).WithCredentials(cred)
-
-	kcHookConstructor, err := newKinesisHook(streamName, cfg, isProd, isAsync)
-
-	if kcHookConstructor == nil {
-		return ld, err
-	}
-
-	kcHook, err := kcHookConstructor.getHook()
-
-	if err != nil {
-		return ld, err
-	}
+	var logger *zap.Logger
 
 	if isProd {
 		config := zap.NewProductionConfig()
 		config.Encoding = "json"
-		logger, _ := config.Build()
-
-		if writeToKinesis {
-			logger = logger.WithOptions(zap.Hooks(kcHook))
-		}
-
-		logger = logger.Named(loggerName)
-		l.internalLogger = logger
+		logger, _ = config.Build()
 	} else {
 		config := zap.NewDevelopmentConfig()
 		config.Encoding = "json"
-		logger, _ := config.Build()
+		config.OutputPaths = []string{"stdout"}
+		config.ErrorOutputPaths = []string{"stdout"}
+		// This displays log messages in a format compatable with the zap-pretty print library
+		config.EncoderConfig = zapcore.EncoderConfig{
+			TimeKey:        "ts",
+			LevelKey:       "level",
+			NameKey:        "logger",
+			CallerKey:      "caller",
+			MessageKey:     "msg",
+			StacktraceKey:  "stacktrace",
+			LineEnding:     zapcore.DefaultLineEnding,
+			EncodeLevel:    zapcore.CapitalColorLevelEncoder,
+			EncodeTime:     zapcore.EpochTimeEncoder,
+			EncodeDuration: zapcore.SecondsDurationEncoder,
+			EncodeCaller:   zapcore.ShortCallerEncoder,
+		}
+		// Remove the wrapper from the caller display so we know which file called _our_ logger
+		logger, _ = config.Build(zap.AddCallerSkip(1))
+	}
 
-		if writeToKinesis {
-			logger = logger.WithOptions(zap.Hooks(kcHook))
+	if writeToKinesis {
+		cred := credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, "")
+		cfg := aws.NewConfig().WithRegion(awsRegion).WithCredentials(cred)
+
+		kcHookConstructor, err := newKinesisHook(streamName, cfg, isProd, isAsync)
+
+		if kcHookConstructor == nil {
+			return ld, err
 		}
 
-		logger = logger.Named(loggerName)
-		l.internalLogger = logger
+		kcHook, err := kcHookConstructor.getHook()
+
+		if err != nil {
+			return ld, err
+		}
+
+		logger = logger.WithOptions(zap.Hooks(kcHook))
 	}
+
+	logger = logger.Named(loggerName)
+	l.internalLogger = logger
 
 	ld.logger = &l
 
@@ -157,7 +170,7 @@ func (d *LogDetails) NewChild(
 	endpoint string,
 	correlationalID, traceabilityID, clientID, userID int64,
 	isReportable bool,
-	additionalData map[string]Field) *LogDetails {
+	additionalData []Field) *LogDetails {
 	ld := d
 	ld.parentDetails = d
 
@@ -244,20 +257,18 @@ func (d *LogDetails) SetIsReportable(isReportable bool) *LogDetails {
 }
 
 // SetAdditionalData sets the additionalData map to the LogDetails instance.
-func (d *LogDetails) SetAdditionalData(additionalData map[string]Field) *LogDetails {
+func (d *LogDetails) SetAdditionalData(additionalData []Field) *LogDetails {
 	d.additionalData = additionalData
 
 	return d
 }
 
 // AppendAdditionalData appends LogDetails additionalData map with new fields.
-func (d *LogDetails) AppendAdditionalData(additionalData map[string]Field) *LogDetails {
+func (d *LogDetails) AppendAdditionalData(additionalData []Field) *LogDetails {
 	if d.additionalData == nil {
 		d.additionalData = additionalData
 	} else if additionalData != nil {
-		for k, v := range additionalData {
-			d.additionalData[k] = v
-		}
+		d.additionalData = append(d.additionalData, additionalData...)
 	}
 
 	return d
@@ -266,7 +277,7 @@ func (d *LogDetails) AppendAdditionalData(additionalData map[string]Field) *LogD
 // NewJaegerLogger creates a logger that implements the jaeger logger interface
 // and is populated by both the loggers parent fields and the log details provided
 func (d *LogDetails) NewJaegerLogger() jaeger.Logger {
-	populatedL := d.logger.internalLogger.With(d.getLogContent(nil)...)
+	populatedL := d.logger.internalLogger.With(d.getLogContent()...)
 	l := jaeger_zap.NewLogger(populatedL)
 
 	return l
@@ -275,7 +286,7 @@ func (d *LogDetails) NewJaegerLogger() jaeger.Logger {
 // NewGRPCUnaryServerInterceptor creates a gRPC unary interceptor that is wrapped around
 // the internal logger populated with its parents fields and any provided log details
 func (d *LogDetails) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	populatedL := d.logger.internalLogger.With(d.getLogContent(nil)...)
+	populatedL := d.logger.internalLogger.With(d.getLogContent()...)
 
 	return grpc_zap.UnaryServerInterceptor(populatedL)
 }
@@ -283,57 +294,55 @@ func (d *LogDetails) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor
 // NewGRPCStreamServerInterceptor creates a gRPC stream interceptor that is wrapped around
 // the internal logger populated with its parents fields and any provided log details
 func (d *LogDetails) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
-	populatedL := d.logger.internalLogger.With(d.getLogContent(nil)...)
+	populatedL := d.logger.internalLogger.With(d.getLogContent()...)
 
 	return grpc_zap.StreamServerInterceptor(populatedL)
 }
 
 // Debug provides developer ability to send useful debug related  messages into Kinesis logging stream.
-func (d *LogDetails) Debug(message string, additionalData map[string]Field) {
-	c := d.getLogContent(additionalData)
+func (d *LogDetails) Debug(message string, additionalData ...Field) {
+	c := d.getLogContent(additionalData...)
 	d.logger.GetInternalLogger().Debug(message, c...)
 }
 
 // Info provides developer ability to send general info  messages into Kinesis logging stream.
-func (d *LogDetails) Info(message string, additionalData map[string]Field) {
-	c := d.getLogContent(additionalData)
+func (d *LogDetails) Info(message string, additionalData ...Field) {
+	c := d.getLogContent(additionalData...)
 	d.logger.GetInternalLogger().Info(message, c...)
 }
 
 // Warn provides developer ability to send useful warning messages into Kinesis logging stream.
-func (d *LogDetails) Warn(message string, additionalData map[string]Field) {
-	c := d.getLogContent(additionalData)
+func (d *LogDetails) Warn(message string, additionalData ...Field) {
+	c := d.getLogContent(additionalData...)
 	d.logger.GetInternalLogger().Warn(message, c...)
 }
 
 // Fatal provides developer ability to send application fatal messages into Kinesis logging stream.
-func (d *LogDetails) Fatal(message string, additionalData map[string]Field) {
-	c := d.getLogContent(additionalData)
+func (d *LogDetails) Fatal(message string, additionalData ...Field) {
+	c := d.getLogContent(additionalData...)
 	d.logger.GetInternalLogger().Fatal(message, c...)
 }
 
 // Error provides developer ability to send error  messages into Kinesis logging stream.
-func (d *LogDetails) Error(message string, additionalData map[string]Field) {
-	c := d.getLogContent(additionalData)
+func (d *LogDetails) Error(message string, additionalData ...Field) {
+	c := d.getLogContent(additionalData...)
 	d.logger.GetInternalLogger().Error(message, c...)
 }
 
 // Panic provides developer ability to send panic  messages into Kinesis logging stream.
-func (d *LogDetails) Panic(message string, additionalData map[string]Field) {
-	c := d.getLogContent(additionalData)
+func (d *LogDetails) Panic(message string, additionalData ...Field) {
+	c := d.getLogContent(additionalData...)
 	d.logger.GetInternalLogger().Panic(message, c...)
 }
 
 // getLogContents aggregates the LogDetails and Logger into a combined map.
 // It returns a json string to insert into an actual log.
-func (d *LogDetails) getLogContent(additionalData map[string]Field) []zap.Field {
+func (d *LogDetails) getLogContent(additionalData ...Field) []zap.Field {
 	ad := d.additionalData
 	if ad == nil {
 		ad = additionalData
-	} else if additionalData != nil {
-		for k, v := range additionalData {
-			ad[k] = v
-		}
+	} else if len(additionalData) > 0 {
+		ad = append(ad, additionalData...)
 	}
 
 	sliceTotal := 7
@@ -352,7 +361,7 @@ func (d *LogDetails) getLogContent(additionalData map[string]Field) []zap.Field 
 	fields[5] = NewInt64Field("userID", d.userID).field
 	fields[6] = NewInt64Field("clientID", d.clientID).field
 
-	if ad != nil {
+	if len(ad) > 0 {
 		ind := 7
 		for _, fieldData := range ad {
 			fields[ind] = fieldData.field
