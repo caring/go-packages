@@ -227,7 +227,7 @@ func (d *LogDetails) NewChild(
 	correlationalID, traceabilityID, clientID, userID int64,
 	isReportable bool,
 	additionalData []Field) *LogDetails {
-	ld := d
+	ld := *d
 	ld.parentDetails = d
 
 	if serviceID != "" {
@@ -260,7 +260,7 @@ func (d *LogDetails) NewChild(
 		ld.endpoint = endpoint
 	}
 
-	return ld
+	return &ld
 }
 
 // SetEndpoint sets the endpoint string to the existing LogDetails instance.
