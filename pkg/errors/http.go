@@ -4,12 +4,7 @@ import "io"
 import "fmt"
 import "strconv"
 import "net/http"
-import "encoding/json"
-import (
-	"google.golang.org/genproto/googleapis/rpc/errdetails"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-)
+import "google.golang.org/grpc/codes"
 
 // converts a gRPC error code to a HTTP code
 func HttpFromGrpc(grpcCode codes.Code) int {
@@ -162,14 +157,14 @@ func WithHttpStatus(err error, code int) error {
 		return nil
 	}
 	return &withHttpStatus{
-		cause:  err,
-		httpStatus:   code
+		cause:      err,
+		httpStatus: code,
 	}
 }
 
 type withHttpStatus struct {
-	cause  error
-	httpStatus   int
+	cause      error
+	httpStatus int
 }
 
 func (w *withHttpStatus) Error() string {

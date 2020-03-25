@@ -153,24 +153,24 @@ func GrpcFromHttp(httpCode int) codes.Code {
 // Wrap returns an error annotating err with a stack trace
 // at the point Wrap is called, and the supplied message.
 // If err is nil, Wrap returns nil.
-func FromGrpcError(err error) error {
-	if err == nil {
+func FromGrpcError(origErr error) error {
+	if origErr == nil {
 		return nil
 	}
-	st := status.Convert(err)
+	st := status.Convert(origErr)
 	if st.Code() == codes.OK {
 		return nil
 	}
 	for _, detail := range st.Details() {
 		switch t := detail.(type) {
 		case *errdetails.DebugInfo:
-			if err := json.Unmarshal([]byte(t.Detail), e); err == nil {
+			if err := json.Unmarshal([]byte(t.Detail), origErr); err == nil {
 				return nil
 			}
 		}
 	}
-	err = &WithGrpcStatus{
-		cause: err,
+	err := &withGrpcStatus{
+		cause:      origErr,
 		grpcStatus: st.Code(),
 	}
 	return &withStack{
@@ -186,22 +186,22 @@ func WithGrpcStatus(err error, code codes.Code) error {
 		return nil
 	}
 	return &withGrpcStatus{
-		cause: err,
-		grpcStatus:  code,
+		cause:      err,
+		grpcStatus: code,
 	}
 }
 
 type withGrpcStatus struct {
-	cause error
-	grpcStatus  codes.Code
+	cause      error
+	grpcStatus codes.Code
 }
 
 func (w *withGrpcStatus) Error() string {
 	return strconv.FormatUint(uint64(w.grpcStatus), 10) + " : " + w.grpcStatus.String() + " : " + w.cause.Error()
 }
 
-func (w *withHttpStatus) Status() uint32 {
-	return w.grpcStatus
+func (w *withGrpcStatus) Status() uint32 {
+	return uint32(w.grpcStatus)
 }
 
 func (w *withGrpcStatus) StatusText() string {
