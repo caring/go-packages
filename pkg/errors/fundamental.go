@@ -11,10 +11,12 @@ type fundamental struct {
 	*stack
 }
 
+// Error() required to implement error interface
 func (f *fundamental) Error() string {
 	return f.msg
 }
 
+// custom formatter - limits what verbs can be used against this 
 func (f *fundamental) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':

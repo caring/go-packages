@@ -1,9 +1,12 @@
 package errors
 
-import "io"
-import "fmt"
-import "strconv"
-import "net/http"
+import (
+	"io"
+	"fmt"
+	"strconv"
+	"encoding/json"
+	"net/http"
+)
 import "google.golang.org/grpc/codes"
 
 // converts a gRPC error code to a HTTP code
@@ -150,50 +153,74 @@ func HttpFromGrpc(grpcCode codes.Code) int {
 	}
 }
 
+// ToHttp writes the error to the http response.
+func ToHttp(in error, w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	if err, ok := From(in); ok {
+		w.WriteHeader(ToHTTPStatusCode(err))
+		return json.NewEncoder(w).Encode(err)
+	}
+	w.WriteHeader(http.StatusInternalServerError)
+	return json.NewEncoder(w).Encode(in)
+}
+
+// FromHttp reads an error from the http response.
+func FromHttp(resp *http.Response) error {
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		return nil
+	}
+	defer resp.Body.Close()
+	var err error
+	if decErr := json.NewDecoder(resp.Body).Decode(&err); decErr != nil {
+		return WithHttpStatus(decErr.Error(), resp.StatusCode)
+	}
+	return WithHttpStatus("Unknown error", resp.StatusCode)
+}
+
 // WithMessage annotates err with a new message.
 // If err is nil, WithMessage returns nil.
 func WithHttpStatus(err error, code int) error {
 	if err == nil {
 		return nil
 	}
-	return &withHttpStatus{
+	return &withhttpCode{
 		cause:      err,
-		httpStatus: code,
+		httpCode: code,
 	}
 }
 
-type withHttpStatus struct {
+type withhttpCode struct {
 	cause      error
-	httpStatus int
+	httpCode int
 }
 
-func (w *withHttpStatus) Error() string {
-	return strconv.Itoa(w.httpStatus) + " : " + http.StatusText(w.httpStatus) + " : " + w.cause.Error()
+func (w *withhttpCode) Error() string {
+	return strconv.Itoa(w.httpCode) + " : " + http.StatusText(w.httpCode) + " : " + w.cause.Error()
 }
 
-func (w *withHttpStatus) Status() int {
-	return w.httpStatus
+func (w *withhttpCode) ErrorCode() int {
+	return w.httpCode
 }
 
-func (w *withHttpStatus) StatusText() string {
-	return http.StatusText(w.httpStatus)
+func (w *withhttpCode) String() string {
+	return http.StatusText(w.httpCode)
 }
 
-func (w *withHttpStatus) Cause() error {
+func (w *withhttpCode) Cause() error {
 	return w.cause
 }
 
 // Unwrap provides compatibility for Go 1.13 error chains.
-func (w *withHttpStatus) Unwrap() error {
+func (w *withhttpCode) Unwrap() error {
 	return w.cause
 }
 
-func (w *withHttpStatus) Format(s fmt.State, verb rune) {
+func (w *withhttpCode) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
 			fmt.Fprintf(s, "%+v\n", w.Cause())
-			io.WriteString(s, http.StatusText(w.httpStatus))
+			io.WriteString(s, http.StatusText(w.httpCode))
 			return
 		}
 		fallthrough

@@ -1,10 +1,11 @@
 package errors
 
-import "io"
-import "fmt"
-import "strconv"
-import "net/http"
-import "encoding/json"
+import (
+	"io"
+	"fmt"
+	"net/http"
+	"encoding/json"
+)
 import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
@@ -44,10 +45,10 @@ func GrpcFromHttp(httpCode int) codes.Code {
 		// not found.
 		return codes.NotFound
 
-		return codes.AlreadyExists
-	// AlreadyExists means an attempt to create an entity failed because one
-	// already exists.
 	case http.StatusConflict:
+		// AlreadyExists means an attempt to create an entity failed because one
+		// already exists.
+		return codes.AlreadyExists
 
 	case http.StatusForbidden:
 		// PermissionDenied indicates the caller does not have permission to
@@ -157,26 +158,31 @@ func FromGrpcError(origErr error) error {
 	if origErr == nil {
 		return nil
 	}
-	st := status.Convert(origErr)
-	if st.Code() == codes.OK {
-		return nil
-	}
-	for _, detail := range st.Details() {
-		switch t := detail.(type) {
-		case *errdetails.DebugInfo:
-			if err := json.Unmarshal([]byte(t.Detail), origErr); err == nil {
+	// sanity check this is actually a GRPCError
+	st, valid := status.FromError(origErr); 
+	if valid {
+		if st.Code() == codes.OK {
 				return nil
 			}
-		}
+			for _, detail := range st.Details() {
+				switch t := detail.(type) {
+				case *errdetails.DebugInfo:
+					if err := json.Unmarshal([]byte(t.Detail), origErr); err == nil {
+						return nil
+					}
+				}
+			}
+			err := &withGrpcStatus{
+				cause:      origErr,
+				grpcCode: st.Code(),
+				grpcStatus: st,
+			}
+			return &withStack{
+				err,
+				callers(),
+			}
 	}
-	err := &withGrpcStatus{
-		cause:      origErr,
-		grpcStatus: st.Code(),
-	}
-	return &withStack{
-		err,
-		callers(),
-	}
+	return nil
 }
 
 // WithMessage annotates err with a new message.
@@ -187,25 +193,27 @@ func WithGrpcStatus(err error, code codes.Code) error {
 	}
 	return &withGrpcStatus{
 		cause:      err,
-		grpcStatus: code,
+		grpcCode: code,
+		grpcStatus: status.New(code, err.Error()),
 	}
 }
 
 type withGrpcStatus struct {
 	cause      error
-	grpcStatus codes.Code
+	grpcCode codes.Code
+	grpcStatus *status.Status
 }
 
 func (w *withGrpcStatus) Error() string {
-	return strconv.FormatUint(uint64(w.grpcStatus), 10) + " : " + w.grpcStatus.String() + " : " + w.cause.Error()
+	return fmt.Sprintf("rpc error: code = %s desc = %s", w.grpcCode, w.grpcStatus.Message())
 }
 
-func (w *withGrpcStatus) Status() uint32 {
-	return uint32(w.grpcStatus)
+func (w *withGrpcStatus) ErrorCode() uint32 {
+	return uint32(w.grpcCode)
 }
 
-func (w *withGrpcStatus) StatusText() string {
-	return w.grpcStatus.String()
+func (w *withGrpcStatus) String() string {
+	return w.grpcStatus.Message()
 }
 
 func (w *withGrpcStatus) Cause() error {
@@ -222,7 +230,7 @@ func (w *withGrpcStatus) Format(s fmt.State, verb rune) {
 	case 'v':
 		if s.Flag('+') {
 			fmt.Fprintf(s, "%+v\n", w.Cause())
-			io.WriteString(s, w.grpcStatus.String())
+			io.WriteString(s, w.String())
 			return
 		}
 		fallthrough
