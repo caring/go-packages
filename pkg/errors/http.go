@@ -165,6 +165,9 @@ func ToHttp(in error, w http.ResponseWriter) error {
 }
 
 // FromHttp reads an error from the http response.
+// this assumes that errors are coming in as JSON
+// formatted the way that can be marshaled into a
+// WithHttpStatus error type 
 func FromHttp(resp *http.Response) error {
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
 		return nil
@@ -177,8 +180,7 @@ func FromHttp(resp *http.Response) error {
 	return WithHttpStatus("Unknown error", resp.StatusCode)
 }
 
-// WithMessage annotates err with a new message.
-// If err is nil, WithMessage returns nil.
+// WithHttpStatus annotates an error with an http code
 func WithHttpStatus(err error, code int) error {
 	if err == nil {
 		return nil
@@ -190,7 +192,7 @@ func WithHttpStatus(err error, code int) error {
 }
 
 type withhttpCode struct {
-	cause      error
+	cause    error
 	httpCode int
 }
 
@@ -210,7 +212,6 @@ func (w *withhttpCode) Cause() error {
 	return w.cause
 }
 
-// Unwrap provides compatibility for Go 1.13 error chains.
 func (w *withhttpCode) Unwrap() error {
 	return w.cause
 }

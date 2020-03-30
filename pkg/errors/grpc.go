@@ -151,9 +151,8 @@ func GrpcFromHttp(httpCode int) codes.Code {
 	return codes.Unknown
 }
 
-// Wrap returns an error annotating err with a stack trace
-// at the point Wrap is called, and the supplied message.
-// If err is nil, Wrap returns nil.
+// FromGrpcError takes a grpc error passed in, and gets the status
+// of it to create a WithGrpcStatus error type
 func FromGrpcError(origErr error) error {
 	if origErr == nil {
 		return nil
@@ -185,7 +184,7 @@ func FromGrpcError(origErr error) error {
 	return nil
 }
 
-// WithMessage annotates err with a new message.
+// WithGrpcStatus annotates err with the grpc code and a status.
 // If err is nil, WithMessage returns nil.
 func WithGrpcStatus(err error, code codes.Code) error {
 	if err == nil {
@@ -220,7 +219,6 @@ func (w *withGrpcStatus) Cause() error {
 	return w.cause
 }
 
-// Unwrap provides compatibility for Go 1.13 error chains.
 func (w *withGrpcStatus) Unwrap() error {
 	return w.cause
 }
