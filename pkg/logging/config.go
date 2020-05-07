@@ -5,8 +5,8 @@ import (
 	"strconv"
 )
 
-// LoggerConfig encapsulates the various settings that may be applied to a logger
-type LoggerConfig struct {
+// Config encapsulates the various settings that may be applied to a logger
+type Config struct {
 	// The name of the logger
 	LoggerName string
 	// The Service ID
@@ -28,8 +28,8 @@ var (
 	falseVar = false
 )
 
-func newDefaultConfig() *LoggerConfig {
-	return &LoggerConfig{
+func newDefaultConfig() *Config {
+	return &Config{
 		LoggerName:          "",
 		ServiceID:           "",
 		LogLevel:            "INFO",
@@ -44,7 +44,7 @@ func newDefaultConfig() *LoggerConfig {
 // it with config from the environment. Config from the environment can
 // be overridden with any config input as arguments. Only non 0 values will
 // be added to the final config
-func mergeAndPopulateConfig(c *LoggerConfig) (*LoggerConfig, error) {
+func mergeAndPopulateConfig(c *Config) (*Config, error) {
 	final := newDefaultConfig()
 
 	if c.LoggerName != "" {

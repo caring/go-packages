@@ -16,7 +16,7 @@ type Logger interface {
 	NewJaegerLogger() jaeger.Logger
 	NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor
 	NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor
-	NewChild(*ChildConfig, ...Field) Logger
+	NewChild(*InternalFields, ...Field) Logger
 	SetEndpoint(endpoint string) Logger
 	SetServiceID(serviceID string) Logger
 	SetCorrelationID(correlationID string) Logger
@@ -49,7 +49,7 @@ type loggerImpl struct {
 
 // NewLogger initializes a new logger.
 // Connects into AWS and sets up a kinesis service.
-func NewLogger(config *LoggerConfig) (Logger, error) {
+func NewLogger(config *Config) (Logger, error) {
 	var (
 		zapConfig zap.Config
 	)
@@ -122,8 +122,8 @@ func (l *loggerImpl) GetInternalLogger() *zap.Logger {
 	return l.internalLogger
 }
 
-// ChildConfig wraps internal field values that can be updated when spawning a child logger.
-type ChildConfig struct {
+// InternalFields wraps internal field values that can be updated when spawning a child logger.
+type InternalFields struct {
 	Endpoint       string
 	CorrelationID  string
 	TraceabilityID string
@@ -134,32 +134,32 @@ type ChildConfig struct {
 
 // NewChild clones logger and returns a child instance where any internal fields are overwritten
 // with any non 0 values passed in
-func (l *loggerImpl) NewChild(c *ChildConfig, additionalFields ...Field) Logger {
+func (l *loggerImpl) NewChild(i *InternalFields, additionalFields ...Field) Logger {
 	new := *l
 	new.parentLogger = l
 
-	if c.Endpoint != "" {
-		new.endpoint = c.Endpoint
+	if i.Endpoint != "" {
+		new.endpoint = i.Endpoint
 	}
 
-	if c.CorrelationID != "" {
-		new.correlationalID = c.CorrelationID
+	if i.CorrelationID != "" {
+		new.correlationalID = i.CorrelationID
 	}
 
-	if c.TraceabilityID != "" {
-		new.traceabilityID = c.TraceabilityID
+	if i.TraceabilityID != "" {
+		new.traceabilityID = i.TraceabilityID
 	}
 
-	if c.ClientID != "" {
-		new.clientID = c.ClientID
+	if i.ClientID != "" {
+		new.clientID = i.ClientID
 	}
 
-	if c.UserID != "" {
-		new.userID = c.UserID
+	if i.UserID != "" {
+		new.userID = i.UserID
 	}
 
-	if c.IsReportable != nil {
-		new.isReportable = *c.IsReportable
+	if i.IsReportable != nil {
+		new.isReportable = *i.IsReportable
 	}
 
 	if additionalFields != nil {
