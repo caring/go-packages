@@ -1,8 +1,6 @@
 package logging
 
 import (
-	"sync"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
@@ -11,12 +9,10 @@ import (
 
 // KinesisHook provides the details to hook into the Zap logger
 type KinesisHook struct {
-	svc             *kinesis.Kinesis
-	partitionKey    string
-	writeableLevels []zapcore.Level
-	streamName      string
-	m               sync.Mutex
-	serviceID       string
+	svc          *kinesis.Kinesis
+	partitionKey string
+	streamName   string
+	serviceID    string
 }
 
 // newKinesisHook creates a KinesisHook struct to to use in the zap log.
@@ -37,11 +33,14 @@ func newKinesisHook(streamName string, partitionKey string) (*KinesisHook, error
 	ks := &KinesisHook{
 		streamName: streamName,
 		svc:        kc,
-		m:          sync.Mutex{},
 	}
 
 	return ks, nil
 }
+
+// TODO Zap docs state not to use hooks for more complex solutions like another logging output,
+// kinesis errors get swallowed here. We need to implement kinesis logging a zap.Core, where we have more
+// control on error destination, log level and good concurrency models
 
 // getHook inserts the function to use when zap creates a log entry.
 func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
