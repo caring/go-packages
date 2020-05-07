@@ -4,14 +4,8 @@ import (
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/uber/jaeger-client-go"
 	jaeger_zap "github.com/uber/jaeger-client-go/log/zap"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
-
-// GetInternalLogger returns the zap internal logger pointer
-func (l *loggerImpl) GetInternalLogger() *zap.Logger {
-	return l.internalLogger
-}
 
 // NewJaegerLogger creates a logger that implements the jaeger logger interface
 // and is populated by both the loggers parent fields and the log details provided

@@ -122,6 +122,11 @@ func NewLogger(
 	return &l, nil
 }
 
+// GetInternalLogger returns the zap internal logger pointer
+func (l *loggerImpl) GetInternalLogger() *zap.Logger {
+	return l.internalLogger
+}
+
 // ChildConfig wraps internal field values that can be updated when spawning a child logger.
 type ChildConfig struct {
 	Endpoint       string

@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 
-	"github.com/caring/go-packages/pkg/logging"
 	"github.com/caring/go-packages/pkg/tracing"
 	"google.golang.org/grpc"
 )
@@ -16,7 +15,6 @@ func main() {
 		TraceDestinationPort: "3000",
 		DisableReporting:     &b,
 		SampleRate:           0.5,
-		Logger:               &logging.LogDetails{},
 		GlobalTags: map[string]string{
 			"tag": "value",
 		},

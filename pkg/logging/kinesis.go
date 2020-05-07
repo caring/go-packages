@@ -121,9 +121,8 @@ func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
 			go writer()
 
 			return nil
-		} else {
-			return writer()
 		}
+		return writer()
 	}
 
 	return kWriter, nil

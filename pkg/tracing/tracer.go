@@ -72,7 +72,7 @@ type TracerConfig struct {
 	// Or the source code for this sampler https://github.com/jaegertracing/jaeger-client-go/blob/master/sampler.go#L242
 	SampleRate float64
 	// The instance of our own logger to use for logging traces
-	Logger *logging.LogDetails
+	Logger logging.Logger
 	// key values pairs that will be included on all spans
 	GlobalTags map[string]string
 }
