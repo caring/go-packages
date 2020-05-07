@@ -79,7 +79,7 @@ func InitLogging(
 	if isProd {
 		config := zap.NewProductionConfig()
 		config.Encoding = "json"
-		logger, _ = config.Build()
+		logger, _ = config.Build(zap.AddCallerSkip(1))
 	} else {
 		config := zap.NewDevelopmentConfig()
 		config.Encoding = "json"
