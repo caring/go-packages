@@ -18,7 +18,7 @@ type Logger interface {
 	NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor
 	NewChild(*InternalFields, ...Field) Logger
 	SetEndpoint(endpoint string) Logger
-	SetServiceID(serviceID string) Logger
+	SetServiceName(serviceID string) Logger
 	SetCorrelationID(correlationID string) Logger
 	SetClientID(clientID string) Logger
 	SetTraceabilityID(traceabilityID string) Logger
@@ -35,7 +35,7 @@ type Logger interface {
 
 type loggerImpl struct {
 	writeToKinesis   bool
-	serviceID        string
+	serviceName      string
 	correlationalID  string
 	traceabilityID   string
 	clientID         string
@@ -176,9 +176,9 @@ func (l *loggerImpl) SetEndpoint(endpoint string) Logger {
 	return l
 }
 
-// SetServiceID sets the serviceID string to the existing Logger instance.
-func (l *loggerImpl) SetServiceID(serviceID string) Logger {
-	l.serviceID = serviceID
+// SetServiceName sets the serviceName string to the existing Logger instance.
+func (l *loggerImpl) SetServiceName(serviceName string) Logger {
+	l.serviceName = serviceName
 
 	return l
 }
@@ -290,7 +290,7 @@ func (l *loggerImpl) getZapFields(additionalFields ...Field) []zap.Field {
 
 	fields := make([]zap.Field, sliceTotal)
 
-	fields[0] = NewStringField("serviceID", l.serviceID).field
+	fields[0] = NewStringField("serviceName", l.serviceName).field
 	fields[1] = NewStringField("endpoint", l.endpoint).field
 	fields[2] = NewBoolField("isReportable", l.isReportable).field
 	fields[3] = NewStringField("traceabilityID", l.traceabilityID).field

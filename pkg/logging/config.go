@@ -9,15 +9,15 @@ import (
 type Config struct {
 	// The name of the logger
 	LoggerName string
-	// The Service ID
-	ServiceID string
+	// The service name
+	ServiceName string
 	// All levels above this will be logged to output and to kinesis (if enabled)
 	LogLevel string
 	// Dev logging out puts in a format to be consumed by the console pretty-printer
 	EnableDevLogging *bool
 	// The name of the kinesis stream
 	KinesisStreamName string
-	// The partition key for kinesis
+	// The partition key to determine which kinesis shard to write to
 	KinesisPartitionKey string
 	// Flag to disable kinesis
 	DisableKinesis *bool
@@ -31,7 +31,7 @@ var (
 func newDefaultConfig() *Config {
 	return &Config{
 		LoggerName:          "",
-		ServiceID:           "",
+		ServiceName:         "",
 		LogLevel:            "INFO",
 		EnableDevLogging:    &falseVar,
 		KinesisStreamName:   "",
@@ -53,10 +53,10 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		final.LoggerName = s
 	}
 
-	if c.ServiceID != "" {
-		final.ServiceID = c.ServiceID
-	} else if s := os.Getenv("LOG_SERVICE_ID"); s != "" {
-		final.ServiceID = s
+	if c.ServiceName != "" {
+		final.ServiceName = c.ServiceName
+	} else if s := os.Getenv("SERVICE_NAME"); s != "" {
+		final.ServiceName = s
 	}
 
 	if c.LogLevel != "" {

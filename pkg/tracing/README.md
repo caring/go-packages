@@ -20,7 +20,7 @@ TRACE_SAMPLE_RATE | The rate spans are sampled expressed as a float. 0.8 is 80%,
 ### Usage
 
 ```golang
-config := &TracerConfig{
+config := &Config{
   ServiceName: "myservice",
   Logger: logging.LogDetails{},
   GlobalTags: map[string]string{

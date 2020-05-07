@@ -6,7 +6,7 @@ func main() {
 	t := true
 	parent, err := logging.NewLogger(&logging.Config{
 		LoggerName:          "logger-1",
-		ServiceID:           "call-scoring",
+		ServiceName:         "call-scoring",
 		LogLevel:            "DEBUG",
 		EnableDevLogging:    &t,
 		KinesisStreamName:   "stream-1",
@@ -33,7 +33,7 @@ func main() {
 	parent.Warn("here's another waring, see no child field!")
 
 	child.SetIsReportable(true)
-	child.SetServiceID("some service")
+	child.SetServiceName("some service")
 
 	child.Warn("I'm the child, final warning... see my fields have changed!", logging.NewFloat64sField("floats", []float64{1.0, 2.0, 3.0}))
 
