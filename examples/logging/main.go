@@ -3,17 +3,32 @@ package main
 import "github.com/caring/go-packages/pkg/logging"
 
 func main() {
-	parent, err := logging.InitLogging(false, "logger-1", "stream-1", "call-scoring", "aws-key", "aws-secret", "aws-region", true, false)
+	t := true
+	parent, err := logging.NewLogger(&logging.Config{
+		LoggerName:          "logger-1",
+		ServiceID:           "call-scoring",
+		LogLevel:            "DEBUG",
+		EnableDevLogging:    &t,
+		KinesisStreamName:   "stream-1",
+		KinesisPartitionKey: "some-key",
+		DisableKinesis:      &t,
+	})
 
 	if err != nil {
 		panic(err)
 	}
 
-	child := parent.NewChild("", "endpoint2", 3, 3, 2, 1, false, []logging.Field{logging.NewStringField("child", "this wont be in the parent")})
+	child := parent.NewChild(
+		&logging.InternalFields{
+			Endpoint:     "Some-endpoint",
+			IsReportable: &t,
+		},
+		logging.NewStringField("child", "this wont be in the parent"),
+	)
 
 	child.Warn("sample message", []logging.Field{logging.NewInt64Field("fieldA", 3)}...)
 
-	child.AppendAdditionalData([]logging.Field{logging.NewBoolField("fieldB", true)})
+	child.AppendAdditionalFields(logging.NewBoolField("fieldB", true), logging.NewStringField("fieldB", "helloworld"))
 
 	parent.Warn("here's another waring, see no child field!")
 

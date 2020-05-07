@@ -9,7 +9,7 @@ import (
 
 func main() {
 	b := false
-	tracer, err := tracing.NewTracer(&tracing.TracerConfig{
+	tracer, err := tracing.NewTracer(&tracing.Config{
 		ServiceName:          "my-service",
 		TraceDestinationDNS:  "hostname",
 		TraceDestinationPort: "3000",
