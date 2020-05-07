@@ -2,60 +2,55 @@
 package logging
 
 import (
-	"sync"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/uber/jaeger-client-go"
-	jaeger_zap "github.com/uber/jaeger-client-go/log/zap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc"
 )
 
 // Logger provides debug, info, warn, panic, & fatal functions to log.
-type Logger struct {
-	internalLogger *zap.Logger
-	writeToKinesis bool
+type Logger interface {
+	GetInternalLogger() *zap.Logger
+	NewJaegerLogger() jaeger.Logger
+	NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor
+	NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor
+	NewChild(*ChildConfig, ...Field) Logger
+	SetEndpoint(endpoint string) Logger
+	SetServiceID(serviceID string) Logger
+	SetCorrelationID(correlationID string) Logger
+	SetClientID(clientID string) Logger
+	SetTraceabilityID(traceabilityID string) Logger
+	SetIsReportable(isReportable bool) Logger
+	SetAdditionalFields(additionalFields ...Field) Logger
+	AppendAdditionalFields(additionalFields ...Field) Logger
+	Debug(message string, additionalFields ...Field)
+	Info(message string, additionalFields ...Field)
+	Warn(message string, additionalFields ...Field)
+	Fatal(message string, additionalFields ...Field)
+	Error(message string, additionalFields ...Field)
+	Panic(message string, additionalFields ...Field)
 }
 
-// LogDetails is the schema structure for logging.
-type LogDetails struct {
-	serviceID       string
-	correlationalID int64
-	traceabilityID  int64
-	clientID        int64
-	userID          int64
-	endpoint        string
-	additionalData  []Field
-	isReportable    bool
-	parentDetails   *LogDetails
-	logger          *Logger
+type loggerImpl struct {
+	writeToKinesis   bool
+	serviceID        string
+	correlationalID  string
+	traceabilityID   string
+	clientID         string
+	userID           string
+	endpoint         string
+	additionalFields []Field
+	isReportable     bool
+	parentLogger     Logger
+	internalLogger   *zap.Logger
 }
 
-// KinesisHook provides the details to hook into the Zap logger
-type KinesisHook struct {
-	svc            *kinesis.Kinesis
-	Async          bool
-	AcceptedLevels []zapcore.Level
-	streamName     string
-	m              sync.Mutex
-	isProd         bool
-	serviceID      string
-}
-
-// Field provides a wrapping struct to be used internally to log indexable fields.
-type Field struct {
-	field zap.Field
-}
-
-// InitLogging initializes a new logger.
+// NewLogger initializes a new logger.
 // Connects into AWS and sets up a kinesis service.
-// It returns a new LogDetails instance that can be used as the initial parent for all application logging.
-func InitLogging(
+// It returns a new Logger instance that can be used as the initial parent for all application logging.
+func NewLogger(
 	isProd bool,
 	loggerName,
 	streamName,
@@ -64,14 +59,13 @@ func InitLogging(
 	awsSecretKey,
 	awsRegion string,
 	isAsync,
-	writeToKinesis bool) (LogDetails, error) {
-	l := Logger{}
-	ld := LogDetails{
-		serviceID:      serviceID,
-		additionalData: nil,
-		isReportable:   false,
-		parentDetails:  nil,
-		logger:         nil,
+	writeToKinesis bool) (Logger, error) {
+	l := loggerImpl{
+		serviceID:        serviceID,
+		additionalFields: nil,
+		isReportable:     false,
+		parentLogger:     nil,
+		internalLogger:   nil,
 	}
 
 	var logger *zap.Logger
@@ -110,13 +104,13 @@ func InitLogging(
 		kcHookConstructor, err := newKinesisHook(streamName, cfg, isProd, isAsync)
 
 		if kcHookConstructor == nil {
-			return ld, err
+			return nil, err
 		}
 
 		kcHook, err := kcHookConstructor.getHook()
 
 		if err != nil {
-			return ld, err
+			return nil, err
 		}
 
 		logger = logger.WithOptions(zap.Hooks(kcHook))
@@ -125,280 +119,167 @@ func InitLogging(
 	logger = logger.Named(loggerName)
 	l.internalLogger = logger
 
-	ld.logger = &l
-
-	return ld, nil
+	return &l, nil
 }
 
-// NewStringField creates an string field used for log indexing.
-func NewStringField(k, v string) Field {
-	f := Field{}
-	s := zap.String(k, v)
-	f.field = s
-
-	return f
+// ChildConfig wraps internal field values that can be updated when spawning a child logger.
+type ChildConfig struct {
+	Endpoint       string
+	CorrelationID  string
+	TraceabilityID string
+	ClientID       string
+	UserID         string
+	IsReportable   *bool
 }
 
-// NewInt64Field creates an int64 field used for log indexing.
-func NewInt64Field(k string, v int64) Field {
-	f := Field{}
-	i := zap.Int64(k, v)
-	f.field = i
+// NewChild clones logger and returns a child instance where any internal fields are overwritten
+// with any non 0 values passed in
+func (l *loggerImpl) NewChild(c *ChildConfig, additionalFields ...Field) Logger {
+	new := *l
+	new.parentLogger = l
 
-	return f
-}
-
-// NewFloat64Field creates an float64 field used for log indexing.
-func NewFloat64Field(k string, v float64) Field {
-	f := Field{}
-	fl := zap.Float64(k, v)
-	f.field = fl
-
-	return f
-}
-
-// NewBoolField creates a bool field used for log indexing.
-func NewBoolField(k string, v bool) Field {
-	f := Field{}
-	b := zap.Bool(k, v)
-	f.field = b
-
-	return f
-}
-
-// NewAnyField takes a key and an arbitrary value and chooses the
-// best way to represent them as a field, falling back to a reflection-based
-// approach only if necessary.
-func NewAnyField(k string, v interface{}) Field {
-	f := Field{}
-	a := zap.Any(k, v)
-	f.field = a
-
-	return f
-}
-
-// NewStringsField creates an array of strings field for log indexing
-func NewStringsField(k string, vs []string) Field {
-	f := Field{}
-	ss := zap.Strings(k, vs)
-	f.field = ss
-
-	return f
-}
-
-// NewInt64sField creates an array of int64s field for log indexing
-func NewInt64sField(k string, vs []int64) Field {
-	f := Field{}
-	is := zap.Int64s(k, vs)
-	f.field = is
-
-	return f
-}
-
-// NewFloat64sField creates an array of int64s field for log indexing
-func NewFloat64sField(k string, vs []float64) Field {
-	f := Field{}
-	fs := zap.Float64s(k, vs)
-	f.field = fs
-
-	return f
-}
-
-// NewBoolsField creates an array of bools field used for log indexing.
-func NewBoolsField(k string, vs []bool) Field {
-	f := Field{}
-	bs := zap.Bools(k, vs)
-	f.field = bs
-
-	return f
-}
-
-// GetInternalLogger returns the zap internal logger pointer
-func (l *Logger) GetInternalLogger() *zap.Logger {
-	return l.internalLogger
-}
-
-// NewChild creates a new child LogDetails struct based on the current.
-// It clones the existing one and updates with any non-zero parameters.
-// Returns a pointer reference to the new child LogDetails instance.
-func (d *LogDetails) NewChild(
-	serviceID,
-	endpoint string,
-	correlationalID, traceabilityID, clientID, userID int64,
-	isReportable bool,
-	additionalData []Field) *LogDetails {
-	ld := *d
-	ld.parentDetails = d
-
-	if serviceID != "" {
-		ld.serviceID = serviceID
+	if c.Endpoint != "" {
+		new.endpoint = c.Endpoint
 	}
 
-	if correlationalID != 0 {
-		ld.correlationalID = correlationalID
+	if c.CorrelationID != "" {
+		new.correlationalID = c.CorrelationID
 	}
 
-	if traceabilityID != 0 {
-		ld.traceabilityID = traceabilityID
+	if c.TraceabilityID != "" {
+		new.traceabilityID = c.TraceabilityID
 	}
 
-	if clientID != 0 {
-		ld.clientID = clientID
+	if c.ClientID != "" {
+		new.clientID = c.ClientID
 	}
 
-	if userID != 0 {
-		ld.userID = userID
+	if c.UserID != "" {
+		new.userID = c.UserID
 	}
 
-	ld.isReportable = isReportable
-
-	if additionalData != nil {
-		ld.additionalData = additionalData
+	if c.IsReportable != nil {
+		new.isReportable = *c.IsReportable
 	}
 
-	if endpoint != "" {
-		ld.endpoint = endpoint
+	if additionalFields != nil {
+		new.additionalFields = additionalFields
 	}
 
-	return &ld
+	return &new
 }
 
-// SetEndpoint sets the endpoint string to the existing LogDetails instance.
-func (d *LogDetails) SetEndpoint(endpoint string) *LogDetails {
-	d.endpoint = endpoint
-
-	return d
-}
-
-// SetServiceID sets the serviceID string to the existing LogDetails instance.
-func (d *LogDetails) SetServiceID(serviceID string) *LogDetails {
-	d.serviceID = serviceID
-
-	return d
-}
-
-// SetCorrelationalID sets the int64 to the LogDetails instance.
-func (d *LogDetails) SetCorrelationalID(correlationalID int64) *LogDetails {
-	d.correlationalID = correlationalID
-
-	return d
-}
-
-// SetClientID sets the string to the LogDetails instance.
-func (d *LogDetails) SetClientID(clientID int64) *LogDetails {
-	d.clientID = clientID
-
-	return d
-}
-
-// SetTraceabilityID sets the int64 to the LogDetails instance.
-func (d *LogDetails) SetTraceabilityID(traceabilityID int64) *LogDetails {
-	d.traceabilityID = traceabilityID
-
-	return d
-}
-
-// SetUserID sets the int64 userID to the LogDetails instance.
-func (d *LogDetails) SetUserID(userID int64) *LogDetails {
-	d.userID = userID
-
-	return d
-}
-
-// SetIsReportable sets the boolean isReportable to the LogDetails instance.
-func (d *LogDetails) SetIsReportable(isReportable bool) *LogDetails {
-	d.isReportable = isReportable
-
-	return d
-}
-
-// SetAdditionalData sets the additionalData map to the LogDetails instance.
-func (d *LogDetails) SetAdditionalData(additionalData []Field) *LogDetails {
-	d.additionalData = additionalData
-
-	return d
-}
-
-// AppendAdditionalData appends LogDetails additionalData map with new fields.
-func (d *LogDetails) AppendAdditionalData(additionalData []Field) *LogDetails {
-	if d.additionalData == nil {
-		d.additionalData = additionalData
-	} else if additionalData != nil {
-		d.additionalData = append(d.additionalData, additionalData...)
-	}
-
-	return d
-}
-
-// NewJaegerLogger creates a logger that implements the jaeger logger interface
-// and is populated by both the loggers parent fields and the log details provided
-func (d *LogDetails) NewJaegerLogger() jaeger.Logger {
-	populatedL := d.logger.internalLogger.With(d.getLogContent()...)
-	l := jaeger_zap.NewLogger(populatedL)
+// SetEndpoint sets the endpoint string to the existing Logger instance.
+func (l *loggerImpl) SetEndpoint(endpoint string) Logger {
+	l.endpoint = endpoint
 
 	return l
 }
 
-// NewGRPCUnaryServerInterceptor creates a gRPC unary interceptor that is wrapped around
-// the internal logger populated with its parents fields and any provided log details
-func (d *LogDetails) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	populatedL := d.logger.internalLogger.With(d.getLogContent()...)
+// SetServiceID sets the serviceID string to the existing Logger instance.
+func (l *loggerImpl) SetServiceID(serviceID string) Logger {
+	l.serviceID = serviceID
 
-	return grpc_zap.UnaryServerInterceptor(populatedL)
+	return l
 }
 
-// NewGRPCStreamServerInterceptor creates a gRPC stream interceptor that is wrapped around
-// the internal logger populated with its parents fields and any provided log details
-func (d *LogDetails) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
-	populatedL := d.logger.internalLogger.With(d.getLogContent()...)
+// SetCorrelationID sets the string to the Logger instance.
+func (l *loggerImpl) SetCorrelationID(correlationID string) Logger {
+	l.correlationalID = correlationID
 
-	return grpc_zap.StreamServerInterceptor(populatedL)
+	return l
+}
+
+// SetClientID sets the string to the Logger instance.
+func (l *loggerImpl) SetClientID(clientID string) Logger {
+	l.clientID = clientID
+
+	return l
+}
+
+// SetTraceabilityID sets the string to the Logger instance.
+func (l *loggerImpl) SetTraceabilityID(traceabilityID string) Logger {
+	l.traceabilityID = traceabilityID
+
+	return l
+}
+
+// SetUserID sets the string userID to the Logger instance.
+func (l *loggerImpl) SetUserID(userID string) Logger {
+	l.userID = userID
+
+	return l
+}
+
+// SetIsReportable sets the boolean isReportable to the Logger instance.
+func (l *loggerImpl) SetIsReportable(isReportable bool) Logger {
+	l.isReportable = isReportable
+
+	return l
+}
+
+// SetAdditionalData sets the additionalFields map to the Logger instance.
+func (l *loggerImpl) SetAdditionalFields(additionalFields ...Field) Logger {
+	l.additionalFields = additionalFields
+
+	return l
+}
+
+// AppendAdditionalFields appends Logger additionalFields map with new fields.
+func (l *loggerImpl) AppendAdditionalFields(additionalFields ...Field) Logger {
+	if l.additionalFields == nil {
+		l.additionalFields = additionalFields
+	} else if additionalFields != nil {
+		l.additionalFields = append(l.additionalFields, additionalFields...)
+	}
+
+	return l
 }
 
 // Debug provides developer ability to send useful debug related  messages into Kinesis logging stream.
-func (d *LogDetails) Debug(message string, additionalData ...Field) {
-	c := d.getLogContent(additionalData...)
-	d.logger.GetInternalLogger().Debug(message, c...)
+func (l *loggerImpl) Debug(message string, additionalFields ...Field) {
+	f := l.getZapFields(additionalFields...)
+	l.internalLogger.Debug(message, f...)
 }
 
 // Info provides developer ability to send general info  messages into Kinesis logging stream.
-func (d *LogDetails) Info(message string, additionalData ...Field) {
-	c := d.getLogContent(additionalData...)
-	d.logger.GetInternalLogger().Info(message, c...)
+func (l *loggerImpl) Info(message string, additionalFields ...Field) {
+	f := l.getZapFields(additionalFields...)
+	l.internalLogger.Info(message, f...)
 }
 
 // Warn provides developer ability to send useful warning messages into Kinesis logging stream.
-func (d *LogDetails) Warn(message string, additionalData ...Field) {
-	c := d.getLogContent(additionalData...)
-	d.logger.GetInternalLogger().Warn(message, c...)
+func (l *loggerImpl) Warn(message string, additionalFields ...Field) {
+	f := l.getZapFields(additionalFields...)
+	l.internalLogger.Warn(message, f...)
 }
 
 // Fatal provides developer ability to send application fatal messages into Kinesis logging stream.
-func (d *LogDetails) Fatal(message string, additionalData ...Field) {
-	c := d.getLogContent(additionalData...)
-	d.logger.GetInternalLogger().Fatal(message, c...)
+func (l *loggerImpl) Fatal(message string, additionalFields ...Field) {
+	f := l.getZapFields(additionalFields...)
+	l.internalLogger.Fatal(message, f...)
 }
 
 // Error provides developer ability to send error  messages into Kinesis logging stream.
-func (d *LogDetails) Error(message string, additionalData ...Field) {
-	c := d.getLogContent(additionalData...)
-	d.logger.GetInternalLogger().Error(message, c...)
+func (l *loggerImpl) Error(message string, additionalFields ...Field) {
+	f := l.getZapFields(additionalFields...)
+	l.internalLogger.Error(message, f...)
 }
 
 // Panic provides developer ability to send panic  messages into Kinesis logging stream.
-func (d *LogDetails) Panic(message string, additionalData ...Field) {
-	c := d.getLogContent(additionalData...)
-	d.logger.GetInternalLogger().Panic(message, c...)
+func (l *loggerImpl) Panic(message string, additionalFields ...Field) {
+	f := l.getZapFields(additionalFields...)
+	l.internalLogger.Panic(message, f...)
 }
 
-// getLogContents aggregates the LogDetails and Logger into a combined map.
+// getZapFields aggregates the LogDetails and Logger into a combined map.
 // It returns a json string to insert into an actual log.
-func (d *LogDetails) getLogContent(additionalData ...Field) []zap.Field {
-	ad := d.additionalData
+func (l *loggerImpl) getZapFields(additionalFields ...Field) []zap.Field {
+	ad := l.additionalFields
 	if ad == nil {
-		ad = additionalData
-	} else if len(additionalData) > 0 {
-		ad = append(ad, additionalData...)
+		ad = additionalFields
+	} else if len(additionalFields) > 0 {
+		ad = append(ad, additionalFields...)
 	}
 
 	sliceTotal := 7
@@ -409,13 +290,13 @@ func (d *LogDetails) getLogContent(additionalData ...Field) []zap.Field {
 
 	fields := make([]zap.Field, sliceTotal)
 
-	fields[0] = NewStringField("endpoint", d.endpoint).field
-	fields[1] = NewStringField("serviceID", d.serviceID).field
-	fields[2] = NewBoolField("isReportable", d.isReportable).field
-	fields[3] = NewInt64Field("traceabilityID", d.traceabilityID).field
-	fields[4] = NewInt64Field("correlationalID", d.correlationalID).field
-	fields[5] = NewInt64Field("userID", d.userID).field
-	fields[6] = NewInt64Field("clientID", d.clientID).field
+	fields[1] = NewStringField("serviceID", l.serviceID).field
+	fields[0] = NewStringField("endpoint", l.endpoint).field
+	fields[2] = NewBoolField("isReportable", l.isReportable).field
+	fields[3] = NewStringField("traceabilityID", l.traceabilityID).field
+	fields[4] = NewStringField("correlationID", l.correlationalID).field
+	fields[5] = NewStringField("userID", l.userID).field
+	fields[6] = NewStringField("clientID", l.clientID).field
 
 	if len(ad) > 0 {
 		ind := 7
@@ -426,130 +307,4 @@ func (d *LogDetails) getLogContent(additionalData ...Field) []zap.Field {
 	}
 
 	return fields
-}
-
-// newKinesisHook creates a KinesisHook struct to to use in the zap log.
-// Tries to find the existing aws Kinesis stream.
-// Creates stream when doesn't exist.
-// Returns a pointer with a implemented KinesisHook.
-func newKinesisHook(streamName string, cfg *aws.Config, isProd, isAsync bool) (*KinesisHook, error) {
-	s := session.New(cfg)
-	kc := kinesis.New(s)
-
-	_, err := kc.DescribeStream(&kinesis.DescribeStreamInput{StreamName: aws.String(streamName)})
-
-	// Create stream if doesn't exist
-	if err != nil {
-		_, err := kc.CreateStream(&kinesis.CreateStreamInput{
-			ShardCount: aws.Int64(1),
-			StreamName: aws.String(streamName),
-		})
-
-		if err != nil {
-			return nil, err
-		}
-
-		if err := kc.WaitUntilStreamExists(&kinesis.DescribeStreamInput{StreamName: aws.String(streamName)}); err != nil {
-			return nil, err
-		}
-	}
-
-	ks := &KinesisHook{
-		streamName:     streamName,
-		svc:            kc,
-		AcceptedLevels: AllLevels,
-		m:              sync.Mutex{},
-		isProd:         isProd,
-		Async:          isAsync,
-	}
-
-	return ks, nil
-}
-
-// getHook inserts the function to use when zap creates a log entry.
-func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
-	kWriter := func(e zapcore.Entry) error {
-		if !ch.isAcceptedLevel(e.Level) {
-			return nil
-		}
-
-		writer := func() error {
-			partKey := "logging-1"
-
-			putOutput, err := ch.svc.PutRecord(&kinesis.PutRecordInput{
-				Data:         []byte(e.Message),
-				StreamName:   aws.String(ch.streamName),
-				PartitionKey: &partKey,
-			})
-
-			if err != nil {
-				return err
-			}
-
-			// retrieve iterator
-			iteratorOutput, err := ch.svc.GetShardIterator(&kinesis.GetShardIteratorInput{
-				// Shard Id is provided when making put record(s) request.
-				ShardId:           putOutput.ShardId,
-				ShardIteratorType: aws.String("TRIM_HORIZON"),
-				// ShardIteratorType: aws.String("AT_SEQUENCE_NUMBER"),
-				// ShardIteratorType: aws.String("LATEST"),
-				StreamName: aws.String(ch.streamName),
-			})
-			if err != nil {
-				return err
-			}
-
-			// get records use shard iterator for making request
-			records, err := ch.svc.GetRecords(&kinesis.GetRecordsInput{
-				ShardIterator: iteratorOutput.ShardIterator,
-			})
-			if err != nil {
-				return err
-			}
-
-			if !ch.isProd && len(records.Records) > 0 {
-				lastRecord := len(records.Records) - 1
-				println(records.Records[lastRecord].String())
-			}
-
-			return err
-		}
-
-		if ch.Async {
-			go writer()
-
-			return nil
-		} else {
-			return writer()
-		}
-	}
-
-	return kWriter, nil
-}
-
-// Levels sets which levels to sent to kinesis
-func (ch *KinesisHook) levels() []zapcore.Level {
-	if ch.AcceptedLevels == nil {
-		return AllLevels
-	}
-	return ch.AcceptedLevels
-}
-
-func (ch *KinesisHook) isAcceptedLevel(level zapcore.Level) bool {
-	for _, lv := range ch.levels() {
-		if lv == level {
-			return true
-		}
-	}
-	return false
-}
-
-// AllLevels Supported log levels
-var AllLevels = []zapcore.Level{
-	zapcore.DebugLevel,
-	zapcore.InfoLevel,
-	zapcore.WarnLevel,
-	zapcore.ErrorLevel,
-	zapcore.FatalLevel,
-	zapcore.PanicLevel,
 }
