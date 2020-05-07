@@ -8,7 +8,7 @@ This package contains tooling to configure and create fast, structured loggers. 
 
 Most of the logging configuration can be done through environment variables. Any values passed into the logging initialization config object will overwrite environment variables. See the table below for details. AWS authorization, region and all other account info are pulled from the hardware that the logger is running on.
 
-Property | Description | Default Value
+Property | Description | Default
 --- | --- | ---
 SERVICE_NAME | The service name | "" Empty String
 LOG_NAME | The name of the logger | "" Empty String
@@ -22,6 +22,7 @@ LOG_DISABLE_KINESIS | Boolean flag to disable out put to kinesis, generally only
 ### Usage
 
 ```golang
+
 t := true
 f := false
 config := &Config{
@@ -43,6 +44,7 @@ config := &Config{
   logger.NewGRPCUnaryServerInterceptor()
   // or
   logger.NewGRPCStreamServerInterceptor()
+
 ```
 
 ### Pretty Printing
