@@ -26,7 +26,7 @@ func main() {
 		logging.NewStringField("child", "this wont be in the parent"),
 	)
 
-	child.Warn("sample message", []logging.Field{logging.NewInt64Field("fieldA", 3)}...)
+	child.Warn("sample message", logging.NewInt64Field("fieldA", 3))
 
 	child.AppendAdditionalFields(logging.NewBoolField("fieldB", true), logging.NewStringField("fieldB", "helloworld"))
 
