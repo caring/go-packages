@@ -8,7 +8,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Logger provides debug, info, warn, panic, & fatal functions to log.
+// Logger provides fast, structured, type safe leveled logging. A logger instance
+// wraps the standard caring log structure and has methods for setting each of these values.
+// There are also utils for obtaining middleware that wraps loggers for our common stack pieces
 type Logger interface {
 	GetInternalLogger() *zap.Logger
 	NewJaegerLogger() jaeger.Logger
@@ -47,7 +49,6 @@ type loggerImpl struct {
 
 // NewLogger initializes a new logger.
 // Connects into AWS and sets up a kinesis service.
-// It returns a new Logger instance that can be used as the initial parent for all application logging.
 func NewLogger(config *LoggerConfig) (Logger, error) {
 	var (
 		zapConfig zap.Config

@@ -12,13 +12,10 @@ type KinesisHook struct {
 	svc          *kinesis.Kinesis
 	partitionKey string
 	streamName   string
-	serviceID    string
 }
 
 // newKinesisHook creates a KinesisHook struct to to use in the zap log.
-// Tries to find the existing aws Kinesis stream.
-// Creates stream when doesn't exist.
-// Returns a pointer with a implemented KinesisHook.
+// errors if the kinesis stream does not exist
 func newKinesisHook(streamName string, partitionKey string) (*KinesisHook, error) {
 	s := session.New()
 	kc := kinesis.New(s)
@@ -42,7 +39,7 @@ func newKinesisHook(streamName string, partitionKey string) (*KinesisHook, error
 // kinesis errors get swallowed here. We need to implement kinesis logging a zap.Core, where we have more
 // control on error destination, log level and good concurrency models
 
-// getHook inserts the function to use when zap creates a log entry.
+// getHook provides the writer hook to zap that will write the log entry to kinesis
 func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
 	kWriter := func(e zapcore.Entry) error {
 		writer := func() error {
