@@ -2,10 +2,7 @@ package tracing
 
 import (
 	"io"
-	"os"
-	"strconv"
 
-	"github.com/caring/go-packages/pkg/logging"
 	grpc_opentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
@@ -56,43 +53,22 @@ func (t *tracerImpl) NewGRPCStreamServerInterceptor() grpc.StreamServerIntercept
 	return grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(t.tracer))
 }
 
-// TracerConfig contains initialization config for NewTracer
-type TracerConfig struct {
-	// The name of the service this tracer is being used in
-	ServiceName string
-	// The DNS of the tracing collector which traces are reported to.
-	TraceDestinationDNS string
-	// The port of the tracing collector which traces are reported to.
-	TraceDestinationPort string
-	// Boolean to disable sending tracing reports
-	DisableReporting *bool
-	// Our Tracing setup uses jaegers GuaranteedThroughputProbabilisticSampler.
-	// This number determins what percent of our traces are sampled. 0.8 = %80, 0.9 = 90% etc.
-	// See their docs on sampling https://github.com/jaegertracing/jaeger-client-go#sampling
-	// Or the source code for this sampler https://github.com/jaegertracing/jaeger-client-go/blob/master/sampler.go#L242
-	SampleRate float64
-	// The instance of our own logger to use for logging traces
-	Logger logging.Logger
-	// key values pairs that will be included on all spans
-	GlobalTags map[string]string
-}
-
 // NewTracer configures a jaeger tracing setup and returns the the configured tracer and reporter for use
-func NewTracer(config *TracerConfig) (Tracer, error) {
+func NewTracer(config *Config) (Tracer, error) {
 	t := tracerImpl{}
 
-	populatedConfig, err := getEnvConfig(config)
+	c, err := mergeAndPopulateConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
 	factory := prometheus.New()
-	metrics := jaeger.NewMetrics(factory, populatedConfig.GlobalTags)
+	metrics := jaeger.NewMetrics(factory, c.GlobalTags)
 
-	l := populatedConfig.Logger
+	l := c.Logger
 
-	if !*populatedConfig.DisableReporting {
-		transport, err := jaeger.NewUDPTransport(populatedConfig.TraceDestinationDNS+":"+populatedConfig.TraceDestinationPort, 0)
+	if !*c.DisableReporting {
+		transport, err := jaeger.NewUDPTransport(c.TraceDestinationDNS+":"+c.TraceDestinationPort, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -112,14 +88,14 @@ func NewTracer(config *TracerConfig) (Tracer, error) {
 	}
 
 	// create a sampler for the spans so that we don't report every single span which would be untenable
-	sampler, err := jaeger.NewGuaranteedThroughputProbabilisticSampler(1.0, populatedConfig.SampleRate)
+	sampler, err := jaeger.NewGuaranteedThroughputProbabilisticSampler(1.0, c.SampleRate)
 	if err != nil {
 		return nil, err
 	}
 
 	// now make the tracer
 	t.tracer, t.tracingCloser = jaeger.NewTracer(
-		populatedConfig.ServiceName,
+		c.ServiceName,
 		sampler,
 		t.reporter,
 		jaeger.TracerOptions.Metrics(metrics),
@@ -128,56 +104,4 @@ func NewTracer(config *TracerConfig) (Tracer, error) {
 	opentracing.SetGlobalTracer(t.tracer)
 
 	return &t, nil
-}
-
-// getEnvConfig populates a config object from the environment, if any of the values are 0 values
-func getEnvConfig(config *TracerConfig) (*TracerConfig, error) {
-	final := TracerConfig{}
-	if config.ServiceName == "" {
-		final.ServiceName = os.Getenv("SERVICE_NAME")
-	} else {
-		final.ServiceName = config.ServiceName
-	}
-
-	if config.TraceDestinationDNS == "" {
-		final.TraceDestinationDNS = os.Getenv("TRACE_DESTINATION_DNS")
-	} else {
-		final.TraceDestinationDNS = config.TraceDestinationDNS
-	}
-
-	if config.TraceDestinationPort == "" {
-		final.TraceDestinationDNS = os.Getenv("TRACE_DESTINATION_PORT")
-	} else {
-		final.TraceDestinationDNS = config.TraceDestinationDNS
-	}
-
-	if config.DisableReporting == nil {
-		boolString := os.Getenv("TRACE_DISABLE")
-		v, err := strconv.ParseBool(boolString)
-		if err != nil {
-			return nil, err
-		}
-		final.DisableReporting = &v
-	} else {
-		final.DisableReporting = config.DisableReporting
-	}
-
-	if config.SampleRate == 0 {
-		floatString := os.Getenv("TRACE_SAMPLE_RATE")
-		v, err := strconv.ParseFloat(floatString, 64)
-		if err != nil {
-			return nil, err
-		}
-		final.SampleRate = v
-	} else {
-		final.SampleRate = config.SampleRate
-	}
-
-	if config.GlobalTags == nil {
-		final.GlobalTags = map[string]string{}
-	} else {
-		final.GlobalTags = config.GlobalTags
-	}
-
-	return &final, nil
 }
