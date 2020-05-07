@@ -2,8 +2,6 @@
 package logging
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/uber/jaeger-client-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -50,37 +48,24 @@ type loggerImpl struct {
 // NewLogger initializes a new logger.
 // Connects into AWS and sets up a kinesis service.
 // It returns a new Logger instance that can be used as the initial parent for all application logging.
-func NewLogger(
-	isProd bool,
-	loggerName,
-	streamName,
-	serviceID,
-	awsAccessKey,
-	awsSecretKey,
-	awsRegion string,
-	isAsync,
-	writeToKinesis bool) (Logger, error) {
-	l := loggerImpl{
-		serviceID:        serviceID,
-		additionalFields: nil,
-		isReportable:     false,
-		parentLogger:     nil,
-		internalLogger:   nil,
+func NewLogger(config *LoggerConfig) (Logger, error) {
+	var (
+		zapConfig zap.Config
+	)
+
+	c, err := mergeAndPopulateConfig(config)
+	if err != nil {
+		return nil, err
 	}
 
-	var logger *zap.Logger
+	l := loggerImpl{}
 
-	if isProd {
-		config := zap.NewProductionConfig()
-		config.Encoding = "json"
-		logger, _ = config.Build(zap.AddCallerSkip(1))
-	} else {
-		config := zap.NewDevelopmentConfig()
-		config.Encoding = "json"
-		config.OutputPaths = []string{"stdout"}
-		config.ErrorOutputPaths = []string{"stdout"}
+	if *c.EnableDevLogging {
+		zapConfig = zap.NewDevelopmentConfig()
+		zapConfig.OutputPaths = []string{"stdout"}
+		zapConfig.ErrorOutputPaths = []string{"stdout"}
 		// This displays log messages in a format compatable with the zap-pretty print library
-		config.EncoderConfig = zapcore.EncoderConfig{
+		zapConfig.EncoderConfig = zapcore.EncoderConfig{
 			TimeKey:        "ts",
 			LevelKey:       "level",
 			NameKey:        "logger",
@@ -93,15 +78,22 @@ func NewLogger(
 			EncodeDuration: zapcore.SecondsDurationEncoder,
 			EncodeCaller:   zapcore.ShortCallerEncoder,
 		}
-		// Remove the wrapper from the caller display so we know which file called _our_ logger
-		logger, _ = config.Build(zap.AddCallerSkip(1))
+	} else {
+		zapConfig = zap.NewProductionConfig()
 	}
 
-	if writeToKinesis {
-		cred := credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, "")
-		cfg := aws.NewConfig().WithRegion(awsRegion).WithCredentials(cred)
+	zapConfig.Encoding = "json"
+	zapConfig.Level.UnmarshalText([]byte(c.LogLevel))
+	// caller skip makes the caller appear as the line of code where this package is called,
+	// instead of where zap is called in this package
+	zapL, err := zapConfig.Build(zap.AddCallerSkip(1))
 
-		kcHookConstructor, err := newKinesisHook(streamName, cfg, isProd, isAsync)
+	if err != nil {
+		return nil, err
+	}
+
+	if !*c.DisableKinesis {
+		kcHookConstructor, err := newKinesisHook(c.KinesisStreamName, c.KinesisPartitionKey)
 
 		if kcHookConstructor == nil {
 			return nil, err
@@ -113,16 +105,18 @@ func NewLogger(
 			return nil, err
 		}
 
-		logger = logger.WithOptions(zap.Hooks(kcHook))
+		zapL = zapL.WithOptions(zap.Hooks(kcHook))
 	}
 
-	logger = logger.Named(loggerName)
-	l.internalLogger = logger
+	zapL = zapL.Named(c.LoggerName)
+	l.internalLogger = zapL
 
 	return &l, nil
 }
 
-// GetInternalLogger returns the zap internal logger pointer
+// GetInternalLogger returns the zap internal logger pointer.
+// Note: Zap should not be considered a stable dependency, another logger
+// may be substituted at any time
 func (l *loggerImpl) GetInternalLogger() *zap.Logger {
 	return l.internalLogger
 }
@@ -295,8 +289,8 @@ func (l *loggerImpl) getZapFields(additionalFields ...Field) []zap.Field {
 
 	fields := make([]zap.Field, sliceTotal)
 
-	fields[1] = NewStringField("serviceID", l.serviceID).field
-	fields[0] = NewStringField("endpoint", l.endpoint).field
+	fields[0] = NewStringField("serviceID", l.serviceID).field
+	fields[1] = NewStringField("endpoint", l.endpoint).field
 	fields[2] = NewBoolField("isReportable", l.isReportable).field
 	fields[3] = NewStringField("traceabilityID", l.traceabilityID).field
 	fields[4] = NewStringField("correlationID", l.correlationalID).field
