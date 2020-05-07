@@ -3,7 +3,6 @@ package tracing
 import (
 	"io"
 
-	grpc_opentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-lib/metrics/prometheus"
@@ -41,16 +40,6 @@ func (t *tracerImpl) Close() error {
 // GetInternalTracer returns a pointer to the internal tracer
 func (t *tracerImpl) GetInternalTracer() *opentracing.Tracer {
 	return &t.tracer
-}
-
-// NewGRPCUnaryServerInterceptor returns a gRPC interceptor wrapped around the internal tracer
-func (t *tracerImpl) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	return grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(t.tracer))
-}
-
-// NewGRPCStreamServerInterceptor returns a gRPC stream interceptor wrapped around the internal tracer
-func (t *tracerImpl) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
-	return grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(t.tracer))
 }
 
 // NewTracer configures a jaeger tracing setup and returns the the configured tracer and reporter for use
