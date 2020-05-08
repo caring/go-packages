@@ -199,14 +199,14 @@ func (l *Logger) SetIsReportable(isReportable bool) *Logger {
 	return l
 }
 
-// SetAdditionalFields sets the additionalFields map to the Logger instance.
+// SetAdditionalFields overwrites the existing accumulated fields on the logger
 func (l *Logger) SetAdditionalFields(additionalFields ...Field) *Logger {
 	l.additionalFields = additionalFields
 
 	return l
 }
 
-// AppendAdditionalFields appends Logger additionalFields map with new fields.
+// AppendAdditionalFields accumulates fields onto the logger
 func (l *Logger) AppendAdditionalFields(additionalFields ...Field) *Logger {
 	if l.additionalFields == nil {
 		l.additionalFields = additionalFields
@@ -217,44 +217,49 @@ func (l *Logger) AppendAdditionalFields(additionalFields ...Field) *Logger {
 	return l
 }
 
-// Debug provides developer ability to send useful debug related  messages into Kinesis logging stream.
+// Debug logs the message at debug level output. This includes the additional fields provided,
+// the standard fields and any fields accumulated on the logger.
 func (l *Logger) Debug(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Debug(message, f...)
 }
 
-// Info provides developer ability to send general info  messages into Kinesis logging stream.
+// Info logs the message at info level output. This includes the additional fields provided,
+// the standard fields and any fields accumulated on the logger.
 func (l *Logger) Info(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Info(message, f...)
 }
 
-// Warn provides developer ability to send useful warning messages into Kinesis logging stream.
+// Warn logs the message at warn level output. This includes the additional fields provided,
+// the standard fields and any fields accumulated on the logger.
 func (l *Logger) Warn(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Warn(message, f...)
 }
 
-// Fatal provides developer ability to send application fatal messages into Kinesis logging stream.
+// Fatal logs the message at fatal level output. This includes the additional fields provided,
+// the standard fields and any fields accumulated on the logger.
 func (l *Logger) Fatal(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Fatal(message, f...)
 }
 
-// Error provides developer ability to send error  messages into Kinesis logging stream.
+// Error logs the message at error level output. This includes the additional fields provided,
+// the standard fields and any fields accumulated on the logger.
 func (l *Logger) Error(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Error(message, f...)
 }
 
-// Panic provides developer ability to send panic  messages into Kinesis logging stream.
+// Panic logs the message at panic level output, then panics. This includes the additional fields provided,
+// the standard fields and any fields accumulated on the logger.
 func (l *Logger) Panic(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Panic(message, f...)
 }
 
-// getZapFields aggregates the LogDetails and Logger into a combined map.
-// It returns a json string to insert into an actual log.
+// getZapFields aggregates the Logger fields into a typed and structured set of zap fields.
 func (l *Logger) getZapFields(additionalFields ...Field) []zap.Field {
 	ad := l.additionalFields
 	if ad == nil {
@@ -271,7 +276,7 @@ func (l *Logger) getZapFields(additionalFields ...Field) []zap.Field {
 
 	fields := make([]zap.Field, sliceTotal)
 
-	fields[0] = NewStringField("serviceName", l.serviceName).field
+	fields[0] = NewStringField("service", l.serviceName).field
 	fields[1] = NewStringField("endpoint", l.endpoint).field
 	fields[2] = NewBoolField("isReportable", l.isReportable).field
 	fields[3] = NewStringField("traceabilityID", l.traceabilityID).field
