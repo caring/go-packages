@@ -6,45 +6,29 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-lib/metrics/prometheus"
-	"google.golang.org/grpc"
 )
 
 // Tracer provides an interface by which to interact with the tracing objects created by this package
-type Tracer interface {
-	// CloseTracing closes the tracing and reporting objects that
-	// are constructed within the tracing package
-	Close() error
-	// GetInternalTracer returns a pointer to the internal tracer.
-	//
-	// Note, The internal tracing package may change.
-	GetInternalTracer() *opentracing.Tracer
-	// NewGRPCUnaryServerInterceptor returns a gRPC interceptor wrapped around the internal tracer
-	NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor
-	// NewGRPCStreamServerInterceptor returns a gRPC stream interceptor wrapped around the internal tracer
-	NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor
-}
-
-// tracerImpl implements the Tracing interface using the jaeger tracing package
-type tracerImpl struct {
+type Tracer struct {
 	tracer        opentracing.Tracer
 	reporter      jaeger.Reporter
 	tracingCloser io.Closer
 }
 
 // Close closes the tracing and reporting objects
-func (t *tracerImpl) Close() error {
+func (t *Tracer) Close() error {
 	t.reporter.Close()
 	return t.tracingCloser.Close()
 }
 
 // GetInternalTracer returns a pointer to the internal tracer
-func (t *tracerImpl) GetInternalTracer() *opentracing.Tracer {
+func (t *Tracer) GetInternalTracer() *opentracing.Tracer {
 	return &t.tracer
 }
 
 // NewTracer configures a jaeger tracing setup and returns the the configured tracer and reporter for use
-func NewTracer(config *Config) (Tracer, error) {
-	t := tracerImpl{}
+func NewTracer(config *Config) (*Tracer, error) {
+	t := Tracer{}
 
 	c, err := mergeAndPopulateConfig(config)
 	if err != nil {

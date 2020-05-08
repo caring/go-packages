@@ -6,11 +6,11 @@ import (
 )
 
 // NewGRPCUnaryServerInterceptor returns a gRPC interceptor wrapped around the internal tracer
-func (t *tracerImpl) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
+func (t *Tracer) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(t.tracer))
 }
 
 // NewGRPCStreamServerInterceptor returns a gRPC stream interceptor wrapped around the internal tracer
-func (t *tracerImpl) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
+func (t *Tracer) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
 	return grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(t.tracer))
 }
