@@ -87,8 +87,8 @@ func NewLogger(config *Config) (*Logger, error) {
 	return &l, nil
 }
 
-// NewNoOpLogger returns a new logger that wont log outputs, wont error, and wont call any internal hooks
-func NewNoOpLogger() *Logger {
+// NewNopLogger returns a new logger that wont log outputs, wont error, and wont call any internal hooks
+func NewNopLogger() *Logger {
 	return &Logger{
 		internalLogger: zap.NewNop(),
 	}
