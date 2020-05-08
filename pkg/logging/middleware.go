@@ -7,8 +7,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-// NewJaegerLogger creates a logger that implements the jaeger logger interface
-// and is populated by both the loggers parent fields and the log details provided
+// NewJaegerLogger returns a jaeger logging interface implementer that has been populated
+// with Loggers internal and accumulated fields as well as settings
 func (l *Logger) NewJaegerLogger() jaeger.Logger {
 	populatedL := l.internalLogger.With(l.getZapFields()...)
 	j := jaeger_zap.NewLogger(populatedL)
@@ -16,16 +16,16 @@ func (l *Logger) NewJaegerLogger() jaeger.Logger {
 	return j
 }
 
-// NewGRPCUnaryServerInterceptor creates a gRPC unary interceptor that is wrapped around
-// the internal logger populated with its parents fields and any provided log details
+// NewGRPCUnaryServerInterceptor returns a gRPC unary interceptor that has been populated
+// with Loggers internal and accumulated fields as well as settings
 func (l *Logger) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	populatedL := l.internalLogger.With(l.getZapFields()...)
 
 	return grpc_zap.UnaryServerInterceptor(populatedL)
 }
 
-// NewGRPCStreamServerInterceptor creates a gRPC stream interceptor that is wrapped around
-// the internal logger populated with its parents fields and any provided log details
+// NewGRPCStreamServerInterceptor returns a gRPC stream interceptor that has been populated
+// with Loggers internal and accumulated fields as well as settings
 func (l *Logger) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
 	populatedL := l.internalLogger.With(l.getZapFields()...)
 

@@ -43,7 +43,7 @@ func newDefaultConfig() *Config {
 // mergeAndPopulateConfig starts with a default config, and populates
 // it with config from the environment. Config from the environment can
 // be overridden with any config input as arguments. Only non 0 values will
-// be added to the final config
+// overwrite the defaults
 func mergeAndPopulateConfig(c *Config) (*Config, error) {
 	final := newDefaultConfig()
 

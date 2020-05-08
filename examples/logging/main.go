@@ -23,19 +23,19 @@ func main() {
 			Endpoint:     "Some-endpoint",
 			IsReportable: &t,
 		},
-		logging.NewStringField("child", "this wont be in the parent"),
+		logging.String("child", "this wont be in the parent"),
 	)
 
-	child.Warn("sample message", logging.NewInt64Field("fieldA", 3))
+	child.Warn("sample message", logging.Int64("fieldA", 3))
 
-	child.AppendAdditionalFields(logging.NewBoolField("fieldB", true), logging.NewStringField("fieldB", "helloworld"))
+	child.AppendAdditionalFields(logging.Bool("fieldB", true), logging.String("fieldB", "helloworld"))
 
 	parent.Warn("here's another waring, see no child field!")
 
 	child.SetIsReportable(true)
 	child.SetServiceName("some service")
 
-	child.Warn("I'm the child, final warning... see my fields have changed!", logging.NewFloat64sField("floats", []float64{1.0, 2.0, 3.0}))
+	child.Warn("I'm the child, final warning... see my fields have changed!", logging.Float64s("floats", []float64{1.0, 2.0, 3.0}))
 
 	m := map[string]interface{}{
 		"key1": 1.0,
@@ -51,5 +51,5 @@ func main() {
 	}
 	a := []map[string]interface{}{obj, obj}
 
-	parent.Warn("Look how any field can marshal complex objects, this is expensive!", logging.NewAnyField("map", m), logging.NewAnyField("array", a))
+	parent.Warn("Look how any field can marshal complex objects, this is expensive!", logging.Any("map", m), logging.Any("array", a))
 }

@@ -6,9 +6,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// Logger provides fast, structured, type safe leveled logging. A logger instance
-// wraps the standard caring log structure and has methods for setting each of these values.
-// There are also utils for obtaining middleware that wraps loggers for our common stack pieces
+// Logger provides fast, structured, type safe leveled logging. All log output methods are safe for concurrent use
 type Logger struct {
 	writeToKinesis   bool
 	serviceName      string
@@ -22,8 +20,7 @@ type Logger struct {
 	internalLogger   *zap.Logger
 }
 
-// NewLogger initializes a new logger.
-// Connects into AWS and sets up a kinesis service.
+// NewLogger initializes a new logger and connects it to a kinesis stream if enabled
 func NewLogger(config *Config) (*Logger, error) {
 	var (
 		zapConfig zap.Config
@@ -276,13 +273,13 @@ func (l *Logger) getZapFields(additionalFields ...Field) []zap.Field {
 
 	fields := make([]zap.Field, sliceTotal)
 
-	fields[0] = NewStringField("service", l.serviceName).field
-	fields[1] = NewStringField("endpoint", l.endpoint).field
-	fields[2] = NewBoolField("isReportable", l.isReportable).field
-	fields[3] = NewStringField("traceabilityID", l.traceabilityID).field
-	fields[4] = NewStringField("correlationID", l.correlationalID).field
-	fields[5] = NewStringField("userID", l.userID).field
-	fields[6] = NewStringField("clientID", l.clientID).field
+	fields[0] = String("service", l.serviceName).field
+	fields[1] = String("endpoint", l.endpoint).field
+	fields[2] = Bool("isReportable", l.isReportable).field
+	fields[3] = String("traceabilityID", l.traceabilityID).field
+	fields[4] = String("correlationID", l.correlationalID).field
+	fields[5] = String("userID", l.userID).field
+	fields[6] = String("clientID", l.clientID).field
 
 	if len(ad) > 0 {
 		ind := 7

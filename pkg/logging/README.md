@@ -38,7 +38,7 @@ config := &Config{
 
   logger, err := NewLogger(config)
 
-  logger.Warn("sample message", logging.NewInt64Field("fieldA", 3))
+  logger.Warn("sample message", logging.Int64("fieldA", 3))
 
   // To obtain a chain interceptor for you gRPC server...
   logger.NewGRPCUnaryServerInterceptor()

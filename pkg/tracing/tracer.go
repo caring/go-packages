@@ -8,7 +8,7 @@ import (
 	"github.com/uber/jaeger-lib/metrics/prometheus"
 )
 
-// Tracer provides an interface by which to interact with the tracing objects created by this package
+// Tracer is a service object for accessing and creating tracing utils
 type Tracer struct {
 	tracer        opentracing.Tracer
 	reporter      jaeger.Reporter
@@ -26,7 +26,7 @@ func (t *Tracer) GetInternalTracer() *opentracing.Tracer {
 	return &t.tracer
 }
 
-// NewTracer configures a jaeger tracing setup and returns the the configured tracer and reporter for use
+// NewTracer configures a jaeger tracing setup wrapped an a Tracer form this package
 func NewTracer(config *Config) (*Tracer, error) {
 	t := Tracer{}
 

@@ -23,7 +23,7 @@ TRACE_SAMPLE_RATE | The rate spans are sampled expressed as a float. 0.8 is 80%,
 
 config := &Config{
   ServiceName: "myservice",
-  Logger: logging.LogDetails{},
+  Logger: logging.Logger{},
   GlobalTags: map[string]string{
     "my-tag": "my-value",
   },
