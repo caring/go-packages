@@ -9,7 +9,7 @@ import (
 
 // NewJaegerLogger creates a logger that implements the jaeger logger interface
 // and is populated by both the loggers parent fields and the log details provided
-func (l *loggerImpl) NewJaegerLogger() jaeger.Logger {
+func (l *Logger) NewJaegerLogger() jaeger.Logger {
 	populatedL := l.internalLogger.With(l.getZapFields()...)
 	j := jaeger_zap.NewLogger(populatedL)
 
@@ -18,7 +18,7 @@ func (l *loggerImpl) NewJaegerLogger() jaeger.Logger {
 
 // NewGRPCUnaryServerInterceptor creates a gRPC unary interceptor that is wrapped around
 // the internal logger populated with its parents fields and any provided log details
-func (l *loggerImpl) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
+func (l *Logger) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	populatedL := l.internalLogger.With(l.getZapFields()...)
 
 	return grpc_zap.UnaryServerInterceptor(populatedL)
@@ -26,7 +26,7 @@ func (l *loggerImpl) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor
 
 // NewGRPCStreamServerInterceptor creates a gRPC stream interceptor that is wrapped around
 // the internal logger populated with its parents fields and any provided log details
-func (l *loggerImpl) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
+func (l *Logger) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
 	populatedL := l.internalLogger.With(l.getZapFields()...)
 
 	return grpc_zap.StreamServerInterceptor(populatedL)

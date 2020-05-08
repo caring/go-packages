@@ -2,38 +2,14 @@
 package logging
 
 import (
-	"github.com/uber/jaeger-client-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"google.golang.org/grpc"
 )
 
 // Logger provides fast, structured, type safe leveled logging. A logger instance
 // wraps the standard caring log structure and has methods for setting each of these values.
 // There are also utils for obtaining middleware that wraps loggers for our common stack pieces
-type Logger interface {
-	GetInternalLogger() *zap.Logger
-	NewJaegerLogger() jaeger.Logger
-	NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor
-	NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor
-	NewChild(*InternalFields, ...Field) Logger
-	SetEndpoint(endpoint string) Logger
-	SetServiceName(serviceID string) Logger
-	SetCorrelationID(correlationID string) Logger
-	SetClientID(clientID string) Logger
-	SetTraceabilityID(traceabilityID string) Logger
-	SetIsReportable(isReportable bool) Logger
-	SetAdditionalFields(additionalFields ...Field) Logger
-	AppendAdditionalFields(additionalFields ...Field) Logger
-	Debug(message string, additionalFields ...Field)
-	Info(message string, additionalFields ...Field)
-	Warn(message string, additionalFields ...Field)
-	Fatal(message string, additionalFields ...Field)
-	Error(message string, additionalFields ...Field)
-	Panic(message string, additionalFields ...Field)
-}
-
-type loggerImpl struct {
+type Logger struct {
 	writeToKinesis   bool
 	serviceName      string
 	correlationalID  string
@@ -43,13 +19,12 @@ type loggerImpl struct {
 	endpoint         string
 	additionalFields []Field
 	isReportable     bool
-	parentLogger     Logger
 	internalLogger   *zap.Logger
 }
 
 // NewLogger initializes a new logger.
 // Connects into AWS and sets up a kinesis service.
-func NewLogger(config *Config) (Logger, error) {
+func NewLogger(config *Config) (*Logger, error) {
 	var (
 		zapConfig zap.Config
 	)
@@ -59,7 +34,7 @@ func NewLogger(config *Config) (Logger, error) {
 		return nil, err
 	}
 
-	l := loggerImpl{}
+	l := Logger{}
 
 	if *c.EnableDevLogging {
 		zapConfig = zap.NewDevelopmentConfig()
@@ -115,10 +90,17 @@ func NewLogger(config *Config) (Logger, error) {
 	return &l, nil
 }
 
+// NewNoOpLogger returns a new logger that wont log outputs, wont error, and wont call any internal hooks
+func NewNoOpLogger() *Logger {
+	return &Logger{
+		internalLogger: zap.NewNop(),
+	}
+}
+
 // GetInternalLogger returns the zap internal logger pointer.
 // Note: Zap should not be considered a stable dependency, another logger
 // may be substituted at any time
-func (l *loggerImpl) GetInternalLogger() *zap.Logger {
+func (l *Logger) GetInternalLogger() *zap.Logger {
 	return l.internalLogger
 }
 
@@ -134,9 +116,8 @@ type InternalFields struct {
 
 // NewChild clones logger and returns a child instance where any internal fields are overwritten
 // with any non 0 values passed in
-func (l *loggerImpl) NewChild(i *InternalFields, additionalFields ...Field) Logger {
+func (l *Logger) NewChild(i *InternalFields, additionalFields ...Field) *Logger {
 	new := *l
-	new.parentLogger = l
 
 	if i.Endpoint != "" {
 		new.endpoint = i.Endpoint
@@ -170,63 +151,63 @@ func (l *loggerImpl) NewChild(i *InternalFields, additionalFields ...Field) Logg
 }
 
 // SetEndpoint sets the endpoint string to the existing Logger instance.
-func (l *loggerImpl) SetEndpoint(endpoint string) Logger {
+func (l *Logger) SetEndpoint(endpoint string) *Logger {
 	l.endpoint = endpoint
 
 	return l
 }
 
 // SetServiceName sets the serviceName string to the existing Logger instance.
-func (l *loggerImpl) SetServiceName(serviceName string) Logger {
+func (l *Logger) SetServiceName(serviceName string) *Logger {
 	l.serviceName = serviceName
 
 	return l
 }
 
 // SetCorrelationID sets the string to the Logger instance.
-func (l *loggerImpl) SetCorrelationID(correlationID string) Logger {
+func (l *Logger) SetCorrelationID(correlationID string) *Logger {
 	l.correlationalID = correlationID
 
 	return l
 }
 
 // SetClientID sets the string to the Logger instance.
-func (l *loggerImpl) SetClientID(clientID string) Logger {
+func (l *Logger) SetClientID(clientID string) *Logger {
 	l.clientID = clientID
 
 	return l
 }
 
 // SetTraceabilityID sets the string to the Logger instance.
-func (l *loggerImpl) SetTraceabilityID(traceabilityID string) Logger {
+func (l *Logger) SetTraceabilityID(traceabilityID string) *Logger {
 	l.traceabilityID = traceabilityID
 
 	return l
 }
 
 // SetUserID sets the string userID to the Logger instance.
-func (l *loggerImpl) SetUserID(userID string) Logger {
+func (l *Logger) SetUserID(userID string) *Logger {
 	l.userID = userID
 
 	return l
 }
 
 // SetIsReportable sets the boolean isReportable to the Logger instance.
-func (l *loggerImpl) SetIsReportable(isReportable bool) Logger {
+func (l *Logger) SetIsReportable(isReportable bool) *Logger {
 	l.isReportable = isReportable
 
 	return l
 }
 
-// SetAdditionalData sets the additionalFields map to the Logger instance.
-func (l *loggerImpl) SetAdditionalFields(additionalFields ...Field) Logger {
+// SetAdditionalFields sets the additionalFields map to the Logger instance.
+func (l *Logger) SetAdditionalFields(additionalFields ...Field) *Logger {
 	l.additionalFields = additionalFields
 
 	return l
 }
 
 // AppendAdditionalFields appends Logger additionalFields map with new fields.
-func (l *loggerImpl) AppendAdditionalFields(additionalFields ...Field) Logger {
+func (l *Logger) AppendAdditionalFields(additionalFields ...Field) *Logger {
 	if l.additionalFields == nil {
 		l.additionalFields = additionalFields
 	} else if additionalFields != nil {
@@ -237,44 +218,44 @@ func (l *loggerImpl) AppendAdditionalFields(additionalFields ...Field) Logger {
 }
 
 // Debug provides developer ability to send useful debug related  messages into Kinesis logging stream.
-func (l *loggerImpl) Debug(message string, additionalFields ...Field) {
+func (l *Logger) Debug(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Debug(message, f...)
 }
 
 // Info provides developer ability to send general info  messages into Kinesis logging stream.
-func (l *loggerImpl) Info(message string, additionalFields ...Field) {
+func (l *Logger) Info(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Info(message, f...)
 }
 
 // Warn provides developer ability to send useful warning messages into Kinesis logging stream.
-func (l *loggerImpl) Warn(message string, additionalFields ...Field) {
+func (l *Logger) Warn(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Warn(message, f...)
 }
 
 // Fatal provides developer ability to send application fatal messages into Kinesis logging stream.
-func (l *loggerImpl) Fatal(message string, additionalFields ...Field) {
+func (l *Logger) Fatal(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Fatal(message, f...)
 }
 
 // Error provides developer ability to send error  messages into Kinesis logging stream.
-func (l *loggerImpl) Error(message string, additionalFields ...Field) {
+func (l *Logger) Error(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Error(message, f...)
 }
 
 // Panic provides developer ability to send panic  messages into Kinesis logging stream.
-func (l *loggerImpl) Panic(message string, additionalFields ...Field) {
+func (l *Logger) Panic(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Panic(message, f...)
 }
 
 // getZapFields aggregates the LogDetails and Logger into a combined map.
 // It returns a json string to insert into an actual log.
-func (l *loggerImpl) getZapFields(additionalFields ...Field) []zap.Field {
+func (l *Logger) getZapFields(additionalFields ...Field) []zap.Field {
 	ad := l.additionalFields
 	if ad == nil {
 		ad = additionalFields

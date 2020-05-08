@@ -49,7 +49,7 @@ config := &Config{
 
 ### Pretty Printing
 
-The development logger outputs logs in a format usable by (this tool)[https://github.com/maoueh/zap-pretty].
+The development logger outputs logs in a format usable by [this tool](https://github.com/maoueh/zap-pretty).
 
 First brew install it
 ```bash
