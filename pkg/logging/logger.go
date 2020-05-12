@@ -8,9 +8,11 @@ import (
 
 // Logger provides fast, structured, type safe leveled logging. All log output methods are safe for concurrent use
 type Logger struct {
-	writeToKinesis   bool
-	serviceName      string
-	correlationalID  string
+	// The name of the service
+	serviceName string
+	// a correlation ID is used to track a single user request through a
+	// network of microservices.
+	correlationID    string
 	traceabilityID   string
 	clientID         string
 	userID           string
@@ -121,7 +123,7 @@ func (l *Logger) NewChild(i *InternalFields, additionalFields ...Field) *Logger 
 	}
 
 	if i.CorrelationID != "" {
-		new.correlationalID = i.CorrelationID
+		new.correlationID = i.CorrelationID
 	}
 
 	if i.TraceabilityID != "" {
@@ -163,7 +165,7 @@ func (l *Logger) SetServiceName(serviceName string) *Logger {
 
 // SetCorrelationID sets the string to the Logger instance.
 func (l *Logger) SetCorrelationID(correlationID string) *Logger {
-	l.correlationalID = correlationID
+	l.correlationID = correlationID
 
 	return l
 }
@@ -277,7 +279,7 @@ func (l *Logger) getZapFields(additionalFields ...Field) []zap.Field {
 	fields[1] = String("endpoint", l.endpoint).field
 	fields[2] = Bool("isReportable", l.isReportable).field
 	fields[3] = String("traceabilityID", l.traceabilityID).field
-	fields[4] = String("correlationID", l.correlationalID).field
+	fields[4] = String("correlationID", l.correlationID).field
 	fields[5] = String("userID", l.userID).field
 	fields[6] = String("clientID", l.clientID).field
 
