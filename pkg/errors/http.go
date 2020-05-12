@@ -1,16 +1,17 @@
 package errors
 
 import (
-	"io"
-	"fmt"
-	"strconv"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
-)
-import "google.golang.org/grpc/codes"
+	"strconv"
 
-// converts a gRPC error code to a HTTP code
-func HttpFromGrpc(grpcCode codes.Code) int {
+	"google.golang.org/grpc/codes"
+)
+
+// HTTPFromGrpc converts a gRPC error code to a HTTP code
+func HTTPFromGrpc(grpcCode codes.Code) int {
 
 	switch grpcCode {
 
@@ -153,40 +154,44 @@ func HttpFromGrpc(grpcCode codes.Code) int {
 	}
 }
 
-// ToHttp writes the error to the http response.
-func ToHttp(in error, w http.ResponseWriter) error {
+// ToHTTP writes the error to the http response.
+func ToHTTP(in error, w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
-	if err, ok := From(in); ok {
-		w.WriteHeader(ToHTTPStatusCode(err))
-		return json.NewEncoder(w).Encode(err)
+
+	// If the error was of *a specific type?* we can find
+	// a specific satus code to write to the header
+	if err, ok := FromGrpcError(in).(*withGrpcStatus); ok {
+		w.WriteHeader(HTTPFromGrpc(err.grpcCode))
+		return json.NewEncoder(w).Encode(err.grpcCode)
 	}
+	// If not it's an arbitary error value so use 500.
 	w.WriteHeader(http.StatusInternalServerError)
 	return json.NewEncoder(w).Encode(in)
 }
 
-// FromHttp reads an error from the http response.
+// FromHTTP reads an error from the http response.
 // this assumes that errors are coming in as JSON
 // formatted the way that can be marshaled into a
-// WithHttpStatus error type 
-func FromHttp(resp *http.Response) error {
+// WithHttpStatus error type
+func FromHTTP(resp *http.Response) error {
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
 		return nil
 	}
 	defer resp.Body.Close()
 	var err error
 	if decErr := json.NewDecoder(resp.Body).Decode(&err); decErr != nil {
-		return WithHttpStatus(decErr.Error(), resp.StatusCode)
+		return WithHTTPStatus(decErr, resp.StatusCode)
 	}
-	return WithHttpStatus("Unknown error", resp.StatusCode)
+	return WithHTTPStatus(New("Unknown error"), resp.StatusCode)
 }
 
-// WithHttpStatus annotates an error with an http code
-func WithHttpStatus(err error, code int) error {
+// WithHTTPStatus annotates an error with an http code
+func WithHTTPStatus(err error, code int) error {
 	if err == nil {
 		return nil
 	}
 	return &withhttpCode{
-		cause:      err,
+		cause:    err,
 		httpCode: code,
 	}
 }
