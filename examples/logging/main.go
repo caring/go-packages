@@ -3,24 +3,39 @@ package main
 import "github.com/caring/go-packages/pkg/logging"
 
 func main() {
-	parent, err := logging.InitLogging(false, "logger-1", "stream-1", "call-scoring", "aws-key", "aws-secret", "aws-region", true, false)
+	t := true
+	parent, err := logging.NewLogger(&logging.Config{
+		LoggerName:          "logger-1",
+		ServiceName:         "call-scoring",
+		LogLevel:            "DEBUG",
+		EnableDevLogging:    &t,
+		KinesisStreamName:   "stream-1",
+		KinesisPartitionKey: "some-key",
+		DisableKinesis:      &t,
+	})
 
 	if err != nil {
 		panic(err)
 	}
 
-	child := parent.NewChild("", "endpoint2", 3, 3, 2, 1, false, []logging.Field{logging.NewStringField("child", "this wont be in the parent")})
+	child := parent.NewChild(
+		&logging.InternalFields{
+			Endpoint:     "Some-endpoint",
+			IsReportable: &t,
+		},
+		logging.String("child", "this wont be in the parent"),
+	)
 
-	child.Warn("sample message", []logging.Field{logging.NewInt64Field("fieldA", 3)}...)
+	child.Warn("sample message", logging.Int64("fieldA", 3))
 
-	child.AppendAdditionalData([]logging.Field{logging.NewBoolField("fieldB", true)})
+	child.AppendAdditionalFields(logging.Bool("fieldB", true), logging.String("fieldB", "helloworld"))
 
 	parent.Warn("here's another waring, see no child field!")
 
 	child.SetIsReportable(true)
-	child.SetServiceID("some service")
+	child.SetServiceName("some service")
 
-	child.Warn("I'm the child, final warning... see my fields have changed!", logging.NewFloat64sField("floats", []float64{1.0, 2.0, 3.0}))
+	child.Warn("I'm the child, final warning... see my fields have changed!", logging.Float64s("floats", []float64{1.0, 2.0, 3.0}))
 
 	m := map[string]interface{}{
 		"key1": 1.0,
@@ -36,5 +51,5 @@ func main() {
 	}
 	a := []map[string]interface{}{obj, obj}
 
-	parent.Warn("Look how any field can marshal complex objects, this is expensive!", logging.NewAnyField("map", m), logging.NewAnyField("array", a))
+	parent.Warn("Look how any field can marshal complex objects, this is expensive!", logging.Any("map", m), logging.Any("array", a))
 }

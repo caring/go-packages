@@ -3,78 +3,45 @@ package tracing
 import (
 	"io"
 
-	"github.com/caring/go-packages/pkg/logging"
-	grpc_opentracing "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-lib/metrics/prometheus"
-	"google.golang.org/grpc"
 )
 
-// TracerObjects provides an interface by which to interact with the tracing objects created by this package
-type TracerObjects interface {
-	// CloseTracing closes the tracing and reporting objects that
-	// are constructed within the tracing package
-	CloseTracing() error
-	// GetInternalTracer returns a pointer to the internal tracer.
-	//
-	// Use this method with caution!!! The internal tracer may change at any time.
-	GetInternalTracer() *opentracing.Tracer
-	// NewGRPCUnaryServerInterceptor returns a gRPC interceptor wrapped around the internal tracer
-	NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor
-	// NewGRPCStreamServerInterceptor returns a gRPC stream interceptor wrapped around the internal tracer
-	NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor
-}
-
-// jaegerT implements the Tracing interface using the jaeger tracing package
-type jaegerT struct {
+// Tracer is a service object for accessing and creating tracing utils
+type Tracer struct {
 	tracer        opentracing.Tracer
 	reporter      jaeger.Reporter
 	tracingCloser io.Closer
 }
 
-// CloseTracing closes the tracing and reporting objects
-func (t *jaegerT) CloseTracing() error {
+// Close closes the tracing and reporting objects
+func (t *Tracer) Close() error {
 	t.reporter.Close()
 	return t.tracingCloser.Close()
 }
 
 // GetInternalTracer returns a pointer to the internal tracer
-func (t *jaegerT) GetInternalTracer() *opentracing.Tracer {
+func (t *Tracer) GetInternalTracer() *opentracing.Tracer {
 	return &t.tracer
 }
 
-// NewGRPCUnaryServerInterceptor returns a gRPC interceptor wrapped around the internal tracer
-func (t *jaegerT) NewGRPCUnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	return grpc_opentracing.UnaryServerInterceptor(grpc_opentracing.WithTracer(t.tracer))
-}
+// NewTracer configures a jaeger tracing setup wrapped an a Tracer form this package
+func NewTracer(config *Config) (*Tracer, error) {
+	t := Tracer{}
 
-// NewGRPCStreamServerInterceptor returns a gRPC stream interceptor wrapped around the internal tracer
-func (t *jaegerT) NewGRPCStreamServerInterceptor() grpc.StreamServerInterceptor {
-	return grpc_opentracing.StreamServerInterceptor(grpc_opentracing.WithTracer(t.tracer))
-}
+	c, err := mergeAndPopulateConfig(config)
+	if err != nil {
+		return nil, err
+	}
 
-// NewTracerInterface configures a jaeger tracing setup and returns the the configured tracer and reporter for use
-//
-// Arguments:
-// serviceName: The name of the service (app) in tracing messages
-// transportDestination: The jaeger server where we are sending the remote reporting to if enabled. <host>:<port> ie "localhost:3001"
-// reportRemote: True enables remote reporting
-// isProd: Specifies to configure the tracer with production options
-// logger: accepts the caring logger to use for logging tracing reporting
-// metricTags: Key value tags appended to the tracing logs
-//
-func NewTracerInterface(serviceName, reportingDestination string, reportRemote, isProd bool, logger logging.LogDetails, metricTags map[string]string) (TracerObjects, error) {
-	t := jaegerT{}
-
-	// create a metrics object
 	factory := prometheus.New()
-	metrics := jaeger.NewMetrics(factory, metricTags)
+	metrics := jaeger.NewMetrics(factory, c.GlobalTags)
 
-	if reportRemote {
-		// If we want to report to a remote tracing analytics server
-		// create the connection here
-		transport, err := jaeger.NewUDPTransport(reportingDestination, 0)
+	l := c.Logger
+
+	if !*c.DisableReporting {
+		transport, err := jaeger.NewUDPTransport(c.TraceDestinationDNS+":"+c.TraceDestinationPort, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -82,34 +49,26 @@ func NewTracerInterface(serviceName, reportingDestination string, reportRemote, 
 		// create composite logger to log to the logger and report to the
 		// remote server
 		t.reporter = jaeger.NewCompositeReporter(
-			jaeger.NewLoggingReporter(logger.NewJaegerLogger()),
+			jaeger.NewLoggingReporter(l.NewJaegerLogger()),
 			jaeger.NewRemoteReporter(transport,
 				jaeger.ReporterOptions.Metrics(metrics),
-				jaeger.ReporterOptions.Logger(logger.NewJaegerLogger()),
+				jaeger.ReporterOptions.Logger(l.NewJaegerLogger()),
 			),
 		)
 	} else {
 		// Simple, logging only reporter
-		t.reporter = jaeger.NewLoggingReporter(logger.NewJaegerLogger())
-	}
-
-	var sampleRate float64
-	if isProd {
-		// Only trace 10% of requests in prod
-		sampleRate = 0.1
-	} else {
-		sampleRate = 1.0
+		t.reporter = jaeger.NewLoggingReporter(l.NewJaegerLogger())
 	}
 
 	// create a sampler for the spans so that we don't report every single span which would be untenable
-	sampler, err := jaeger.NewGuaranteedThroughputProbabilisticSampler(1.0, sampleRate)
+	sampler, err := jaeger.NewGuaranteedThroughputProbabilisticSampler(1.0, c.SampleRate)
 	if err != nil {
 		return nil, err
 	}
 
 	// now make the tracer
 	t.tracer, t.tracingCloser = jaeger.NewTracer(
-		serviceName,
+		c.ServiceName,
 		sampler,
 		t.reporter,
 		jaeger.TracerOptions.Metrics(metrics),

@@ -3,33 +3,31 @@ package main
 import (
 	"log"
 
-	"github.com/caring/go-packages/pkg/logging"
 	"github.com/caring/go-packages/pkg/tracing"
 	"google.golang.org/grpc"
 )
 
 func main() {
-	t, err := tracing.NewTracerInterface(
-		"my-service",
-		"hostname:6451",
-		false,
-		false,
-		// This would need to be a constructed logger in practice, a literal is used here for brevity.
-		// See the logging example...
-		logging.LogDetails{},
-		map[string]string{
+	b := false
+	tracer, err := tracing.NewTracer(&tracing.Config{
+		ServiceName:          "my-service",
+		TraceDestinationDNS:  "hostname",
+		TraceDestinationPort: "3000",
+		DisableReporting:     &b,
+		SampleRate:           0.5,
+		GlobalTags: map[string]string{
 			"tag": "value",
 		},
-	)
-	defer t.CloseTracing()
+	})
+	defer tracer.Close()
 
 	if err != nil {
 		log.Fatal("Error establishing tracing")
 	}
 
 	// Create gRPC interceptsors
-	streamI := t.NewGRPCStreamServerInterceptor()
-	unaryI := t.NewGRPCUnaryServerInterceptor()
+	streamI := tracer.NewGRPCStreamServerInterceptor()
+	unaryI := tracer.NewGRPCUnaryServerInterceptor()
 
 	// Use your interceptors
 	grpc.NewServer(
