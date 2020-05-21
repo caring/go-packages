@@ -8,14 +8,14 @@ import (
 )
 
 // KinesisHook providers getters and generators for hooks to connect zap to kinesis
-type KinesisHook struct {
+type kinesisHook struct {
 	svc          *kinesis.Kinesis
 	partitionKey string
 	streamName   string
 }
 
 // newKinesisHook creates a KinesisHook, returns an error if the configured Kinesis stream does not exist
-func newKinesisHook(streamName string, partitionKey string) (*KinesisHook, error) {
+func newKinesisHook(streamName string, partitionKey string) (*kinesisHook, error) {
 	s := session.New()
 	kc := kinesis.New(s)
 
@@ -26,7 +26,7 @@ func newKinesisHook(streamName string, partitionKey string) (*KinesisHook, error
 		return nil, err
 	}
 
-	ks := &KinesisHook{
+	ks := &kinesisHook{
 		streamName: streamName,
 		svc:        kc,
 	}
@@ -39,7 +39,7 @@ func newKinesisHook(streamName string, partitionKey string) (*KinesisHook, error
 // control on error destination, log level and good concurrency models
 
 // getHook provides the writer hook to zap that will call to write log entries to kinesis
-func (ch *KinesisHook) getHook() (func(zapcore.Entry) error, error) {
+func (ch *kinesisHook) getHook() (func(zapcore.Entry) error, error) {
 	kWriter := func(e zapcore.Entry) error {
 		writer := func() error {
 			_, err := ch.svc.PutRecord(&kinesis.PutRecordInput{
