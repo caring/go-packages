@@ -80,4 +80,12 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 		assert.Equal(t, "barshard", result.KinesisPartitionKey, "Expected blank kinesis shard to be barshard")
 		assert.Equal(t, true, *result.DisableKinesis, "Expected kinesis to be disabled")
 	})
+
+	os.Setenv("SERVICE_NAME", "")
+	os.Setenv("LOG_NAME", "")
+	os.Setenv("LOG_LEVEL", "")
+	os.Setenv("LOG_ENABLE_DEV", "")
+	os.Setenv("LOG_KINESIS_NAME", "")
+	os.Setenv("LOG_KINESIS_KEY", "")
+	os.Setenv("LOG_DISABLE_KINESIS", "")
 }
