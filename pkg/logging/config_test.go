@@ -3,33 +3,22 @@ package logging
 import (
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_newDefaultConfig(t *testing.T) {
 	t.Run("Initializes a new config with the correct values", func(t *testing.T) {
 		c := newDefaultConfig()
 
-		if c.LoggerName != "" {
-			t.Error("Logger name was not empty")
-		}
-		if c.ServiceName != "" {
-			t.Error("Service name was not empty")
-		}
-		if c.LogLevel != "INFO" {
-			t.Error("Log level was not empty")
-		}
-		if *c.EnableDevLogging != false {
-			t.Error("Dev logging was enabled by default")
-		}
-		if c.KinesisStreamName != "" {
-			t.Error("Kinesis stream name was not empty")
-		}
-		if c.KinesisPartitionKey != "" {
-			t.Error("Kinesis partition key was not empty")
-		}
-		if *c.DisableKinesis != true {
-			t.Error("Kinesis was enabled by default")
-		}
+		assert.Equal(t, "", c.LoggerName, "Expected an empty logger name")
+		assert.Equal(t, "", c.ServiceName, "Expected an empty service name")
+		assert.Equal(t, "INFO", c.LogLevel, "Expected INFO log level")
+		assert.Equal(t, false, *c.EnableDevLogging, "Expected dev logging to be disabled")
+		assert.Equal(t, "", c.KinesisStreamName, "Expected blank kinesis stream")
+		assert.Equal(t, "", c.KinesisPartitionKey, "Expected blank kinesis stream")
+		assert.Equal(t, true, *c.DisableKinesis, "Expected kinesis to be disabled")
 	})
 }
 
@@ -37,31 +26,15 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 	t.Run("Initializes a config with default values with env and input are empty", func(t *testing.T) {
 		c := &Config{}
 		result, err := mergeAndPopulateConfig(c)
-		if err != nil {
-			t.Fatal("Error when populating config from env" + err.Error())
-		}
 
-		if result.LoggerName != "" {
-			t.Error("Logger name was not empty")
-		}
-		if result.ServiceName != "" {
-			t.Error("Service name was not empty")
-		}
-		if result.LogLevel != "INFO" {
-			t.Error("Log level was not empty")
-		}
-		if *result.EnableDevLogging != false {
-			t.Error("Dev logging was enabled by default")
-		}
-		if result.KinesisStreamName != "" {
-			t.Error("Kinesis stream name was not empty")
-		}
-		if result.KinesisPartitionKey != "" {
-			t.Error("Kinesis partition key was not empty")
-		}
-		if *result.DisableKinesis != true {
-			t.Error("Kinesis was enabled by default")
-		}
+		require.NoError(t, err, "Expected no error creating config")
+		assert.Equal(t, "", result.LoggerName, "Expected an empty logger name")
+		assert.Equal(t, "", result.ServiceName, "Expected an empty service name")
+		assert.Equal(t, "INFO", result.LogLevel, "Expected INFO log level")
+		assert.Equal(t, false, *result.EnableDevLogging, "Expected dev logging to be disabled")
+		assert.Equal(t, "", result.KinesisStreamName, "Expected blank kinesis stream")
+		assert.Equal(t, "", result.KinesisPartitionKey, "Expected blank kinesis stream")
+		assert.Equal(t, true, *result.DisableKinesis, "Expected kinesis to be disabled")
 	})
 
 	os.Setenv("SERVICE_NAME", "fooservice")
@@ -75,31 +48,15 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 	t.Run("Initializes all config from environment correctly when given an empty config object", func(t *testing.T) {
 		c := &Config{}
 		result, err := mergeAndPopulateConfig(c)
-		if err != nil {
-			t.Fatal("Error when populating config from env" + err.Error())
-		}
 
-		if result.LoggerName != "foologger" {
-			t.Error("Logger name was not foologger")
-		}
-		if result.ServiceName != "fooservice" {
-			t.Error("Service name was not fooservice")
-		}
-		if result.LogLevel != "DEBUG" {
-			t.Error("Log level was not DEBUG")
-		}
-		if *result.EnableDevLogging != true {
-			t.Error("Dev logging was not true")
-		}
-		if result.KinesisStreamName != "kinesisstream2" {
-			t.Error("Kinesis stream name was not kinesisstream2")
-		}
-		if result.KinesisPartitionKey != "shard1" {
-			t.Error("Kinesis partition key was not shard1")
-		}
-		if *result.DisableKinesis != false {
-			t.Error("Kinesis was not disabled")
-		}
+		require.NoError(t, err, "Expected no error creating config")
+		assert.Equal(t, "foologger", result.LoggerName, "Expected logger name to be foologger")
+		assert.Equal(t, "fooservice", result.ServiceName, "Expected service name to be fooservice")
+		assert.Equal(t, "DEBUG", result.LogLevel, "Expected DEBUG log level")
+		assert.Equal(t, true, *result.EnableDevLogging, "Expected dev logging to be enabled")
+		assert.Equal(t, "kinesisstream2", result.KinesisStreamName, "Expected stream name to  kinesisstream2")
+		assert.Equal(t, "shard1", result.KinesisPartitionKey, "Expected blank kinesis shard to be shard1")
+		assert.Equal(t, false, *result.DisableKinesis, "Expected kinesis to be enabled")
 	})
 
 	t.Run("Initializes all config from environment correctly when given a populated config object", func(t *testing.T) {
@@ -113,30 +70,14 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 			DisableKinesis:      &trueVar,
 		}
 		result, err := mergeAndPopulateConfig(c)
-		if err != nil {
-			t.Fatal("Error when populating config from env" + err.Error())
-		}
 
-		if result.LoggerName != "barlogger" {
-			t.Error("Logger name was not barlogger")
-		}
-		if result.ServiceName != "barservice" {
-			t.Error("Service name was not barservice")
-		}
-		if result.LogLevel != "FATAL" {
-			t.Error("Log level was not FATAL")
-		}
-		if *result.EnableDevLogging != false {
-			t.Error("Dev logging was not false")
-		}
-		if result.KinesisStreamName != "barstream1" {
-			t.Error("Kinesis stream name was not barstream1")
-		}
-		if result.KinesisPartitionKey != "barshard" {
-			t.Error("Kinesis partition key was not barshard")
-		}
-		if *result.DisableKinesis != true {
-			t.Error("Kinesis was not enabled")
-		}
+		require.NoError(t, err, "Expected no error creating config")
+		assert.Equal(t, "barlogger", result.LoggerName, "Expected logger name to be barlogger")
+		assert.Equal(t, "barservice", result.ServiceName, "Expected service name to be barservice")
+		assert.Equal(t, "FATAL", result.LogLevel, "Expected FATAL log level")
+		assert.Equal(t, false, *result.EnableDevLogging, "Expected dev logging to be disabled")
+		assert.Equal(t, "barstream1", result.KinesisStreamName, "Expected stream name to  barstream1")
+		assert.Equal(t, "barshard", result.KinesisPartitionKey, "Expected blank kinesis shard to be barshard")
+		assert.Equal(t, true, *result.DisableKinesis, "Expected kinesis to be disabled")
 	})
 }
