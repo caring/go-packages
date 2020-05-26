@@ -2,6 +2,7 @@
 package logging
 
 import (
+	"github.com/caring/go-packages/pkg/logging/exit"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -241,8 +242,15 @@ func (l *Logger) Warn(message string, additionalFields ...Field) {
 // Fatal logs the message at fatal level output. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
 func (l *Logger) Fatal(message string, additionalFields ...Field) {
+	// This one method differs so that we may abstract away os.Exit into a mockable
+	// and testable internal library of our own. Zap has done this, but it is internal
+	// so we cant use it
 	f := l.getZapFields(additionalFields...)
-	l.internalLogger.Fatal(message, f...)
+	if ce := l.internalLogger.Check(zapcore.FatalLevel, message); ce != nil {
+		ce.Should(ce.Entry, zapcore.WriteThenNoop)
+		ce.Write(f...)
+		exit.Exit()
+	}
 }
 
 // Error logs the message at error level output. This includes the additional fields provided,
