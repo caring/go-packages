@@ -114,7 +114,8 @@ type InternalFields struct {
 }
 
 // NewChild clones logger and returns a child instance where any internal fields are overwritten
-// with any non 0 values passed in
+// with any non 0 values passed in. Additional fields are accumulated on existing ones instead of being
+// overwritten
 func (l *Logger) NewChild(i *InternalFields, additionalFields ...Field) *Logger {
 	new := *l
 
@@ -143,7 +144,7 @@ func (l *Logger) NewChild(i *InternalFields, additionalFields ...Field) *Logger 
 	}
 
 	if additionalFields != nil {
-		new.additionalFields = additionalFields
+		new.AppendAdditionalFields(additionalFields...)
 	}
 
 	return &new
