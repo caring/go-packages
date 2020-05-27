@@ -2,7 +2,7 @@
 package logging
 
 import (
-	"github.com/caring/go-packages/pkg/logging/exit"
+	"github.com/caring/go-packages/pkg/logging/internal/exit"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
