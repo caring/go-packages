@@ -7,7 +7,7 @@ func main() {
 	parent, err := logging.NewLogger(&logging.Config{
 		LoggerName:          "logger-1",
 		ServiceName:         "call-scoring",
-		LogLevel:            "DEBUG",
+		LogLevel:            logging.DebugLevel,
 		EnableDevLogging:    &t,
 		KinesisStreamName:   "stream-1",
 		KinesisPartitionKey: "some-key",
@@ -19,7 +19,7 @@ func main() {
 	}
 
 	child := parent.NewChild(
-		&logging.InternalFields{
+		&logging.FieldOpts{
 			Endpoint:     "Some-endpoint",
 			IsReportable: &t,
 		},
@@ -28,12 +28,16 @@ func main() {
 
 	child.Warn("sample message", logging.Int64("fieldA", 3))
 
-	child.AppendAdditionalFields(logging.Bool("fieldB", true), logging.String("fieldB", "helloworld"))
+	child.With(nil, logging.Bool("fieldB", true), logging.String("fieldB", "helloworld"))
 
 	parent.Warn("here's another waring, see no child field!")
 
-	child.SetIsReportable(true)
-	child.SetServiceName("some service")
+	child.With(&logging.FieldOpts{
+		IsReportable: logging.DoReport,
+	})
+	child.With(&logging.FieldOpts{
+		CorrelationID: "someID",
+	})
 
 	child.Warn("I'm the child, final warning... see my fields have changed!", logging.Float64s("floats", []float64{1.0, 2.0, 3.0}))
 
