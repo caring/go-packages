@@ -9,7 +9,7 @@ import (
 // A utility method ported from Uber's zap lib to aid in testing log outputs
 func withLogger(c *Config, f func(*Logger, *observer.ObservedLogs)) {
 	l := zapcore.InfoLevel
-	err := l.UnmarshalText([]byte(c.LogLevel))
+	err := l.Set(c.LogLevel.String())
 	if err != nil {
 		panic(err)
 	}

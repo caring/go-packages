@@ -63,7 +63,7 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 		c := &Config{
 			LoggerName:          "barlogger",
 			ServiceName:         "barservice",
-			LogLevel:            "FATAL",
+			LogLevel:            FatalLevel,
 			EnableDevLogging:    &falseVar,
 			KinesisStreamName:   "barstream1",
 			KinesisPartitionKey: "barshard",

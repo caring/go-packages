@@ -58,8 +58,12 @@ func NewLogger(config *Config) (*Logger, error) {
 		zapConfig = zap.NewProductionConfig()
 	}
 
+	var at *zap.AtomicLevel
+	b, _ := c.LogLevel.MarshalText()
+	err = at.UnmarshalText(b)
+
 	zapConfig.Encoding = "json"
-	zapConfig.Level.UnmarshalText([]byte(c.LogLevel))
+	zapConfig.Level = *at
 	// caller skip makes the caller appear as the line of code where this package is called,
 	// instead of where zap is called in this package
 	zapL, err := zapConfig.Build(zap.AddCallerSkip(1))
@@ -239,20 +243,6 @@ func (l *Logger) Warn(message string, additionalFields ...Field) {
 	l.internalLogger.Warn(message, f...)
 }
 
-// Fatal logs the message at fatal level output. This includes the additional fields provided,
-// the standard fields and any fields accumulated on the logger.
-func (l *Logger) Fatal(message string, additionalFields ...Field) {
-	// This one method differs so that we may abstract away os.Exit into a mockable
-	// and testable internal library of our own. Zap has done this, but it is internal
-	// so we cant use it
-	f := l.getZapFields(additionalFields...)
-	if ce := l.internalLogger.Check(zapcore.FatalLevel, message); ce != nil {
-		ce.Should(ce.Entry, zapcore.WriteThenNoop)
-		ce.Write(f...)
-		exit.Exit()
-	}
-}
-
 // Error logs the message at error level output. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
 func (l *Logger) Error(message string, additionalFields ...Field) {
@@ -265,6 +255,31 @@ func (l *Logger) Error(message string, additionalFields ...Field) {
 func (l *Logger) Panic(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Panic(message, f...)
+}
+
+// DPanic logs a message at DPanicLevel. The message includes any fields
+// passed at the log site, as well as any fields accumulated on the logger.
+//
+// If the logger is in development mode, it then panics (DPanic means
+// "development panic"). This is useful for catching errors that are
+// recoverable, but shouldn't ever happen.
+func (l *Logger) DPanic(message string, additionalFields ...Field) {
+	f := l.getZapFields(additionalFields...)
+	l.internalLogger.DPanic(message, f...)
+}
+
+// Fatal logs the message at fatal level output. This includes the additional fields provided,
+// the standard fields and any fields accumulated on the logger.
+func (l *Logger) Fatal(message string, additionalFields ...Field) {
+	// This one method differs so that we may abstract away os.Exit into a mockable
+	// and testable internal library of our own. Zap has done this, but it is internal
+	// so we cant use it
+	f := l.getZapFields(additionalFields...)
+	if ce := l.internalLogger.Check(zapcore.FatalLevel, message); ce != nil {
+		ce.Should(ce.Entry, zapcore.WriteThenNoop)
+		ce.Write(f...)
+	}
+	exit.Exit()
 }
 
 // getZapFields aggregates the Logger fields into a typed and structured set of zap fields.

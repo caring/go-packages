@@ -12,7 +12,7 @@ type Config struct {
 	// The service name
 	ServiceName string
 	// All levels above this will be logged to output and to kinesis (if enabled)
-	LogLevel string
+	LogLevel Level
 	// Dev logging out puts in a format to be consumed by the console pretty-printer
 	EnableDevLogging *bool
 	// The name of the kinesis stream
@@ -32,7 +32,7 @@ func newDefaultConfig() *Config {
 	return &Config{
 		LoggerName:          "",
 		ServiceName:         "",
-		LogLevel:            "INFO",
+		LogLevel:            InfoLevel,
 		EnableDevLogging:    &falseVar,
 		KinesisStreamName:   "",
 		KinesisPartitionKey: "",
@@ -59,10 +59,13 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		final.ServiceName = s
 	}
 
-	if c.LogLevel != "" {
+	if c.LogLevel != 0 {
 		final.LogLevel = c.LogLevel
 	} else if s := os.Getenv("LOG_LEVEL"); s != "" {
-		final.LogLevel = s
+		err := final.LogLevel.Set(s)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if c.EnableDevLogging != nil {
