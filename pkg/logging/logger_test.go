@@ -16,18 +16,17 @@ var config = &Config{
 
 func Test_LoggerNewChild(t *testing.T) {
 	withLogger(config, func(logger *Logger, logs *observer.ObservedLogs) {
-		i := &InternalFields{}
-		logger.AppendAdditionalFields(Int64("foo", 42))
+		logger.SetInternalFields(nil, Int64("foo", 42))
 		// Child loggers should have copy-on-write semantics, so two children
 		// shouldn't stomp on each other's fields or affect the parent's fields.
-		logger.NewChild(i, String("one", "two")).Info("")
-		logger.NewChild(i, String("three", "four")).Info("")
+		logger.NewChild(nil, String("one", "two")).Info("")
+		logger.NewChild(nil, String("three", "four")).Info("")
 		logger.Info("")
 
 		assert.Equal(t, []observer.LoggedEntry{
-			{Context: commonFields(config, i, zap.Int64("foo", 42), zap.String("one", "two"))},
-			{Context: commonFields(config, i, zap.Int64("foo", 42), zap.String("three", "four"))},
-			{Context: commonFields(config, i, zap.Int64("foo", 42))},
+			{Context: commonFields(config, FieldOpts{}, zap.Int64("foo", 42), zap.String("one", "two"))},
+			{Context: commonFields(config, FieldOpts{}, zap.Int64("foo", 42), zap.String("three", "four"))},
+			{Context: commonFields(config, FieldOpts{}, zap.Int64("foo", 42))},
 		}, logs.AllUntimed(), "Unexpected cross-talk between child loggers.")
 	})
 }
@@ -121,7 +120,7 @@ func Test_LoggerDPanic(t *testing.T) {
 					Entry: zapcore.Entry{Level: zap.DPanicLevel},
 					Context: commonFields(
 						config,
-						&InternalFields{},
+						FieldOpts{},
 					),
 				},
 			},
@@ -142,7 +141,7 @@ func Test_LoggerDPanic(t *testing.T) {
 					Entry: zapcore.Entry{Level: zap.DPanicLevel},
 					Context: commonFields(
 						c,
-						&InternalFields{},
+						FieldOpts{},
 					),
 				},
 			},
