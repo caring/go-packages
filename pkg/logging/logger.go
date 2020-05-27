@@ -40,23 +40,7 @@ func NewLogger(config *Config) (*Logger, error) {
 	}
 
 	if *c.EnableDevLogging {
-		zapConfig = zap.NewDevelopmentConfig()
-		zapConfig.OutputPaths = []string{"stdout"}
-		zapConfig.ErrorOutputPaths = []string{"stdout"}
-		// This displays log messages in a format compatable with the zap-pretty print library
-		zapConfig.EncoderConfig = zapcore.EncoderConfig{
-			TimeKey:        "ts",
-			LevelKey:       "level",
-			NameKey:        "logger",
-			CallerKey:      "caller",
-			MessageKey:     "msg",
-			StacktraceKey:  "stacktrace",
-			LineEnding:     zapcore.DefaultLineEnding,
-			EncodeLevel:    zapcore.CapitalColorLevelEncoder,
-			EncodeTime:     zapcore.EpochTimeEncoder,
-			EncodeDuration: zapcore.SecondsDurationEncoder,
-			EncodeCaller:   zapcore.ShortCallerEncoder,
-		}
+		zapConfig = newZapDevelopmentConfig()
 	} else {
 		zapConfig = zap.NewProductionConfig()
 	}
@@ -114,7 +98,7 @@ type FieldOpts struct {
 	TraceabilityID string
 	ClientID       string
 	UserID         string
-	IsReportable   *bool
+	IsReportable   ReportFlag
 	// If set to true, the existing accumulated fields will be
 	// replaced with the fields passed in, a nil value writes the
 	// accumulated fields to an empty value
@@ -129,7 +113,7 @@ type FieldOpts struct {
 }
 
 // NewChild clones logger and returns a child instance where any internal fields are overwritten
-// with any non 0 values passed in, or if the field overwrite is set to true then the field will
+// with any non 0 values passed in, or if the field reset is set to true then the field will
 // be set to a zero value. If nil options are passed in then the logger is simply cloned without change.
 func (l *Logger) NewChild(opts *FieldOpts, fields ...Field) *Logger {
 	new := *l
@@ -185,7 +169,7 @@ func (l *Logger) setInternalFields(opts *FieldOpts, fields ...Field) {
 	}
 
 	if opts.OverwriteAccumulatedFields {
-		l.writeAccumulatedFields(fields...)
+		l.writeFields(fields...)
 	} else {
 		l.accumulateFields(fields...)
 	}
@@ -198,7 +182,7 @@ func (l *Logger) accumulateFields(f ...Field) {
 
 // overwrites the accumulated fields of logger with the fields passed in,
 // a nil argument writes an empty slice to the fields
-func (l *Logger) writeAccumulatedFields(f ...Field) {
+func (l *Logger) writeFields(f ...Field) {
 	if f == nil {
 		l.fields = []Field{}
 	}
