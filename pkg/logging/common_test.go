@@ -10,7 +10,13 @@ import (
 func withLogger(c *Config, f func(*Logger, *observer.ObservedLogs)) {
 	l := zapcore.Level(c.LogLevel)
 	fac, logs := observer.New(l)
-	zapL := zap.New(fac)
+
+	opts := []zap.Option{}
+
+	if b := c.EnableDevLogging; b != nil && *b {
+		opts = append(opts, zap.Development())
+	}
+	zapL := zap.New(fac, opts...)
 
 	log, err := NewLogger(c)
 	if err != nil {
