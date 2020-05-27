@@ -9,17 +9,15 @@ import (
 )
 
 func Test_newDefaultConfig(t *testing.T) {
-	t.Run("Initializes a new config with the correct values", func(t *testing.T) {
-		c := newDefaultConfig()
+	c := newDefaultConfig()
 
-		assert.Equal(t, "", c.LoggerName, "Expected an empty logger name")
-		assert.Equal(t, "", c.ServiceName, "Expected an empty service name")
-		assert.Equal(t, InfoLevel, c.LogLevel, "Expected INFO log level")
-		assert.Equal(t, false, *c.EnableDevLogging, "Expected dev logging to be disabled")
-		assert.Equal(t, "", c.KinesisStreamName, "Expected blank kinesis stream")
-		assert.Equal(t, "", c.KinesisPartitionKey, "Expected blank kinesis stream")
-		assert.Equal(t, true, *c.DisableKinesis, "Expected kinesis to be disabled")
-	})
+	assert.Equal(t, "", c.LoggerName, "Expected an empty logger name")
+	assert.Equal(t, "", c.ServiceName, "Expected an empty service name")
+	assert.Equal(t, InfoLevel, c.LogLevel, "Expected INFO log level")
+	assert.Equal(t, false, *c.EnableDevLogging, "Expected dev logging to be disabled")
+	assert.Equal(t, "", c.KinesisStreamName, "Expected blank kinesis stream")
+	assert.Equal(t, "", c.KinesisPartitionKey, "Expected blank kinesis stream")
+	assert.Equal(t, true, *c.DisableKinesis, "Expected kinesis to be disabled")
 }
 
 func Test_mergeAndPopulateConfig(t *testing.T) {
