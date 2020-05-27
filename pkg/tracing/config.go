@@ -1,6 +1,7 @@
 package tracing
 
 import (
+	"errors"
 	"os"
 	"strconv"
 
@@ -51,6 +52,11 @@ func newDefaultConfig() *Config {
 // overwrite the defaults
 func mergeAndPopulateConfig(c *Config) (*Config, error) {
 	final := newDefaultConfig()
+
+	if c.Logger == nil {
+		return nil, errors.New("No logger input")
+	}
+	final.Logger = c.Logger
 
 	if c.ServiceName != "" {
 		final.ServiceName = c.ServiceName
