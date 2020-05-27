@@ -237,7 +237,7 @@ func (l *Logger) DPanic(message string, additionalFields ...Field) {
 	l.internalLogger.DPanic(message, f...)
 }
 
-// Fatal logs the message at fatal level output. This includes the additional fields provided,
+// Fatal logs the message at fatal level output, then calls os.Exit. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
 func (l *Logger) Fatal(message string, additionalFields ...Field) {
 	// This one method differs so that we may abstract away os.Exit into a mockable
