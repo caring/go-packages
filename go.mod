@@ -13,5 +13,4 @@ require (
 	github.com/uber/jaeger-lib v2.2.0+incompatible
 	go.uber.org/zap v1.13.0
 	google.golang.org/grpc v1.26.0
-	gotest.tools/v3 v3.0.2
 )
