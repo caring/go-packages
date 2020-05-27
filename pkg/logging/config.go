@@ -59,7 +59,7 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 	final := newDefaultConfig()
 
 	if c == nil {
-		return final, nil
+		c = &Config{}
 	}
 	if c.LoggerName != "" {
 		final.LoggerName = c.LoggerName
