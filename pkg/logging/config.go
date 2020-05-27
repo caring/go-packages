@@ -58,6 +58,9 @@ func newDefaultConfig() *Config {
 func mergeAndPopulateConfig(c *Config) (*Config, error) {
 	final := newDefaultConfig()
 
+	if c == nil {
+		return final, nil
+	}
 	if c.LoggerName != "" {
 		final.LoggerName = c.LoggerName
 	} else if s := os.Getenv("LOG_NAME"); s != "" {
