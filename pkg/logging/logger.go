@@ -58,12 +58,8 @@ func NewLogger(config *Config) (*Logger, error) {
 		zapConfig = zap.NewProductionConfig()
 	}
 
-	var at *zap.AtomicLevel
-	b, _ := c.LogLevel.MarshalText()
-	err = at.UnmarshalText(b)
-
 	zapConfig.Encoding = "json"
-	zapConfig.Level = *at
+	zapConfig.Level.SetLevel(zapcore.Level(c.LogLevel))
 	// caller skip makes the caller appear as the line of code where this package is called,
 	// instead of where zap is called in this package
 	zapL, err := zapConfig.Build(zap.AddCallerSkip(1))

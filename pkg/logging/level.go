@@ -139,17 +139,3 @@ func (l *Level) Get() interface{} {
 func (l Level) Enabled(lvl Level) bool {
 	return lvl >= l
 }
-
-// LevelEnabler decides whether a given logging level is enabled when logging a
-// message.
-//
-// Enablers are intended to be used to implement deterministic filters;
-// concerns like sampling are better implemented as a Core.
-//
-// Each concrete Level value implements a static LevelEnabler which returns
-// true for itself and all higher logging levels. For example WarnLevel.Enabled()
-// will return true for WarnLevel, ErrorLevel, DPanicLevel, PanicLevel, and
-// FatalLevel, but return false for InfoLevel and DebugLevel.
-type LevelEnabler interface {
-	Enabled(Level) bool
-}
