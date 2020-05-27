@@ -34,7 +34,7 @@ func Test_NewChild(t *testing.T) {
 	})
 }
 
-func TestLoggerLogPanic(t *testing.T) {
+func Test_LoggerLogPanic(t *testing.T) {
 
 	withLogger(config, func(logger *Logger, logs *observer.ObservedLogs) {
 		assert.Panics(t, func() { logger.Panic("baz") }, "Expected panic")
@@ -50,7 +50,7 @@ func TestLoggerLogPanic(t *testing.T) {
 	})
 }
 
-func TestLoggerLogFatal(t *testing.T) {
+func Test_LoggerLogFatal(t *testing.T) {
 	withLogger(config, func(logger *Logger, logs *observer.ObservedLogs) {
 		stub := exit.WithStub(func() {
 			logger.Fatal("baz")
@@ -68,7 +68,7 @@ func TestLoggerLogFatal(t *testing.T) {
 
 }
 
-func TestLoggerLeveledMethods(t *testing.T) {
+func Test_LoggerLeveledMethods(t *testing.T) {
 	withLogger(config, func(logger *Logger, logs *observer.ObservedLogs) {
 		tests := []struct {
 			method        func(string, ...Field)
@@ -93,7 +93,7 @@ func TestLoggerLeveledMethods(t *testing.T) {
 	})
 }
 
-func TestLoggerAlwaysPanics(t *testing.T) {
+func Test_LoggerAlwaysPanics(t *testing.T) {
 	// Users can disable writing out panic-level logs, but calls to logger.Panic()
 	// should still call panic().
 	withLogger(&Config{LogLevel: FatalLevel}, func(logger *Logger, logs *observer.ObservedLogs) {
@@ -103,12 +103,65 @@ func TestLoggerAlwaysPanics(t *testing.T) {
 	})
 }
 
-func TestLoggerAlwaysFatals(t *testing.T) {
+func Test_LoggerAlwaysFatals(t *testing.T) {
 	// Users can disable writing out fatal-level logs, but calls to logger.Fatal()
 	// should still terminate the process.
 	withLogger(&Config{LogLevel: FatalLevel + 1}, func(logger *Logger, logs *observer.ObservedLogs) {
 		stub := exit.WithStub(func() { logger.Fatal("") })
 		assert.True(t, stub.Exited, "Expected calls to logger.Fatal to terminate process.")
 		assert.Equal(t, 0, logs.Len(), "Shouldn't write out logs when fatal-level logging is disabled.")
+	})
+}
+
+func Test_LoggerDPanic(t *testing.T) {
+	withLogger(config, func(logger *Logger, logs *observer.ObservedLogs) {
+		assert.NotPanics(t, func() { logger.DPanic("") })
+		assert.Equal(
+			t,
+			[]observer.LoggedEntry{
+				{
+					Entry: zapcore.Entry{Level: zap.DPanicLevel},
+					Context: commonFields(
+						config,
+						&InternalFields{},
+					),
+				},
+			},
+			logs.AllUntimed(),
+			"Unexpected log output from DPanic in production mode.",
+		)
+	})
+	c := &Config{
+		EnableDevLogging: &trueVar,
+		LogLevel:         DPanicLevel,
+	}
+	withLogger(c, func(logger *Logger, logs *observer.ObservedLogs) {
+		assert.Panics(t, func() { logger.DPanic("") })
+		assert.Equal(
+			t,
+			[]observer.LoggedEntry{
+				{
+					Entry: zapcore.Entry{Level: zap.DPanicLevel},
+					Context: commonFields(
+						c,
+						&InternalFields{},
+					),
+				},
+			},
+			logs.AllUntimed(),
+			"Unexpected log output from DPanic in development mode.",
+		)
+	})
+}
+
+func Test_LoggerNoOpsDisabledLevels(t *testing.T) {
+	withLogger(&Config{LogLevel: WarnLevel}, func(logger *Logger, logs *observer.ObservedLogs) {
+		logger.Info("silence!")
+		assert.Equal(
+			t,
+			[]observer.LoggedEntry{},
+			logs.AllUntimed(),
+			"Expected logging at a disabled level to produce no output.",
+		)
 	})
 }
