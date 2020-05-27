@@ -3,6 +3,22 @@ package logging
 import (
 	"os"
 	"strconv"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
+
+// ReportFlag is a convenience abstraction of bool pointers
+// to help avoid messy multiliners when configuring the logger
+type ReportFlag *bool
+
+var (
+	trueVar  = true
+	falseVar = false
+	// DoReport sets log messages to be sent to the data-pipeline
+	DoReport ReportFlag = &trueVar
+	// DontReport sets log messages not to be sent to the data-pipeline
+	DontReport ReportFlag = &falseVar
 )
 
 // Config encapsulates the various settings that may be applied to a logger
@@ -22,11 +38,6 @@ type Config struct {
 	// Flag to disable kinesis
 	DisableKinesis *bool
 }
-
-var (
-	trueVar  = true
-	falseVar = false
-)
 
 func newDefaultConfig() *Config {
 	return &Config{
@@ -101,4 +112,27 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 	}
 
 	return final, nil
+}
+
+// spits out a zap config that has been tuned to play nicely with
+// the zap-pretty pretty printing util and easy development
+func newZapDevelopmentConfig() zap.Config {
+	c := zap.NewDevelopmentConfig()
+	c.OutputPaths = []string{"stdout"}
+	c.ErrorOutputPaths = []string{"stdout"}
+	// This displays log messages in a format compatable with the zap-pretty print library
+	c.EncoderConfig = zapcore.EncoderConfig{
+		TimeKey:        "ts",
+		LevelKey:       "level",
+		NameKey:        "logger",
+		CallerKey:      "caller",
+		MessageKey:     "msg",
+		StacktraceKey:  "stacktrace",
+		LineEnding:     zapcore.DefaultLineEnding,
+		EncodeLevel:    zapcore.CapitalColorLevelEncoder,
+		EncodeTime:     zapcore.EpochTimeEncoder,
+		EncodeDuration: zapcore.SecondsDurationEncoder,
+		EncodeCaller:   zapcore.ShortCallerEncoder,
+	}
+	return c
 }
