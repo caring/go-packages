@@ -117,21 +117,21 @@ type FieldOpts struct {
 // be set to a zero value. If nil options are passed in then the logger is simply cloned without change.
 func (l *Logger) NewChild(opts *FieldOpts, fields ...Field) *Logger {
 	new := *l
-	new.setInternalFields(opts, fields...)
+	new.with(opts, fields...)
 
 	return &new
 }
 
-// SetInternalFields sets the internal fields with the provided options.
+// With sets the internal fields with the provided options.
 // See the options struct for more details
-func (l *Logger) SetInternalFields(opts *FieldOpts, fields ...Field) {
-	l.setInternalFields(opts, fields...)
+func (l *Logger) With(opts *FieldOpts, fields ...Field) *Logger {
+	return l.with(opts, fields...)
 }
 
-func (l *Logger) setInternalFields(opts *FieldOpts, fields ...Field) {
+func (l *Logger) with(opts *FieldOpts, fields ...Field) *Logger {
 	if opts == nil {
 		l.fields = append(l.fields, fields...)
-		return
+		return l
 	}
 
 	if opts.ResetEndpoint {
@@ -173,6 +173,8 @@ func (l *Logger) setInternalFields(opts *FieldOpts, fields ...Field) {
 	} else {
 		l.accumulateFields(fields...)
 	}
+
+	return l
 }
 
 // accumulates the given fields onto the existing accumulated fields of logger

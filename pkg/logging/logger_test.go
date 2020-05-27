@@ -17,7 +17,7 @@ var config = &Config{
 
 func Test_LoggerNewChild(t *testing.T) {
 	withLogger(config, func(logger *Logger, logs *observer.ObservedLogs) {
-		logger.SetInternalFields(nil, Int64("foo", 42))
+		logger.With(nil, Int64("foo", 42))
 		// Child loggers should have copy-on-write semantics, so two children
 		// shouldn't stomp on each other's fields or affect the parent's fields.
 		logger.NewChild(nil, String("one", "two")).Info("")
@@ -39,7 +39,7 @@ func Test_LoggerSetInternalFields(t *testing.T) {
 			clientID: "someclient",
 		}
 
-		l.setInternalFields(&FieldOpts{
+		l.With(&FieldOpts{
 			Endpoint: "newendpoint",
 			ClientID: "NewClient",
 			UserID:   "someuser",
@@ -58,7 +58,7 @@ func Test_LoggerSetInternalFields(t *testing.T) {
 			correlationID: "someID",
 		}
 
-		l.setInternalFields(&FieldOpts{
+		l.With(&FieldOpts{
 			ResetEndpoint: true,
 			ResetClientID: true,
 		})
@@ -75,7 +75,7 @@ func Test_LoggerSetInternalFields(t *testing.T) {
 		}
 
 		ss := String("three", "four")
-		l.setInternalFields(nil, ss)
+		l.With(nil, ss)
 
 		require.Equal(t, 2, len(l.fields), "Expected fields to be accumulated on the logger")
 		assert.Equal(t, s, l.fields[0], "Expected existing fields not to be overwritten")
@@ -88,7 +88,7 @@ func Test_LoggerSetInternalFields(t *testing.T) {
 		}
 
 		ss := String("three", "four")
-		l.setInternalFields(&FieldOpts{OverwriteAccumulatedFields: true}, ss)
+		l.With(&FieldOpts{OverwriteAccumulatedFields: true}, ss)
 
 		require.Equal(t, 1, len(l.fields), "Expected fields to be accumulated on the logger")
 		assert.Equal(t, ss, l.fields[0], "Expected the second field to be accumulated")
