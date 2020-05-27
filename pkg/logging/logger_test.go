@@ -14,7 +14,7 @@ var config = &Config{
 	LogLevel: DebugLevel,
 }
 
-func Test_NewChild(t *testing.T) {
+func Test_LoggerNewChild(t *testing.T) {
 	t.Run("Should create child loggers that can be mutated independently of their parent", func(t *testing.T) {
 		withLogger(config, func(logger *Logger, logs *observer.ObservedLogs) {
 			i := &InternalFields{}
