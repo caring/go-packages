@@ -91,6 +91,12 @@ func (l *Logger) GetInternalLogger() *zap.Logger {
 	return l.internalLogger
 }
 
+// Sync calls the underlying logger's Sync method, flushing any buffered log
+// entries. Applications should take care to call Sync before exiting.
+func (l *Logger) Sync() error {
+	return l.internalLogger.Sync()
+}
+
 // FieldOpts wraps internal field values that can be updated when spawning a child logger.
 type FieldOpts struct {
 	Endpoint       string
@@ -126,69 +132,6 @@ func (l *Logger) NewChild(opts *FieldOpts, fields ...Field) *Logger {
 // See the options struct for more details
 func (l *Logger) With(opts *FieldOpts, fields ...Field) *Logger {
 	return l.with(opts, fields...)
-}
-
-func (l *Logger) with(opts *FieldOpts, fields ...Field) *Logger {
-	if opts == nil {
-		l.fields = append(l.fields, fields...)
-		return l
-	}
-
-	if opts.ResetEndpoint {
-		l.endpoint = ""
-	} else if opts.Endpoint != "" {
-		l.endpoint = opts.Endpoint
-	}
-
-	if opts.ResetCorrelationID {
-		l.correlationID = ""
-	} else if opts.CorrelationID != "" {
-		l.correlationID = opts.CorrelationID
-	}
-
-	if opts.ResetTraceabilityID {
-		l.traceabilityID = ""
-	} else if opts.TraceabilityID != "" {
-		l.traceabilityID = opts.TraceabilityID
-	}
-
-	if opts.ResetClientID {
-		l.clientID = ""
-	} else if opts.ClientID != "" {
-		l.clientID = opts.ClientID
-	}
-
-	if opts.ResetUserID {
-		l.userID = ""
-	} else if opts.UserID != "" {
-		l.userID = opts.UserID
-	}
-
-	if opts.IsReportable != nil {
-		l.isReportable = *opts.IsReportable
-	}
-
-	if opts.OverwriteAccumulatedFields {
-		l.writeFields(fields...)
-	} else {
-		l.accumulateFields(fields...)
-	}
-
-	return l
-}
-
-// accumulates the given fields onto the existing accumulated fields of logger
-func (l *Logger) accumulateFields(f ...Field) {
-	l.fields = append(l.fields, f...)
-}
-
-// overwrites the accumulated fields of logger with the fields passed in,
-// a nil argument writes an empty slice to the fields
-func (l *Logger) writeFields(f ...Field) {
-	if f == nil {
-		l.fields = []Field{}
-	}
-	l.fields = f
 }
 
 // Debug logs the message at debug level output. This includes the additional fields provided,
@@ -278,4 +221,67 @@ func (l *Logger) getZapFields(fields ...Field) []zap.Field {
 	}
 
 	return zapped
+}
+
+func (l *Logger) with(opts *FieldOpts, fields ...Field) *Logger {
+	if opts == nil {
+		l.fields = append(l.fields, fields...)
+		return l
+	}
+
+	if opts.ResetEndpoint {
+		l.endpoint = ""
+	} else if opts.Endpoint != "" {
+		l.endpoint = opts.Endpoint
+	}
+
+	if opts.ResetCorrelationID {
+		l.correlationID = ""
+	} else if opts.CorrelationID != "" {
+		l.correlationID = opts.CorrelationID
+	}
+
+	if opts.ResetTraceabilityID {
+		l.traceabilityID = ""
+	} else if opts.TraceabilityID != "" {
+		l.traceabilityID = opts.TraceabilityID
+	}
+
+	if opts.ResetClientID {
+		l.clientID = ""
+	} else if opts.ClientID != "" {
+		l.clientID = opts.ClientID
+	}
+
+	if opts.ResetUserID {
+		l.userID = ""
+	} else if opts.UserID != "" {
+		l.userID = opts.UserID
+	}
+
+	if opts.IsReportable != nil {
+		l.isReportable = *opts.IsReportable
+	}
+
+	if opts.OverwriteAccumulatedFields {
+		l.writeFields(fields...)
+	} else {
+		l.accumulateFields(fields...)
+	}
+
+	return l
+}
+
+// accumulates the given fields onto the existing accumulated fields of logger
+func (l *Logger) accumulateFields(f ...Field) {
+	l.fields = append(l.fields, f...)
+}
+
+// overwrites the accumulated fields of logger with the fields passed in,
+// a nil argument writes an empty slice to the fields
+func (l *Logger) writeFields(f ...Field) {
+	if f == nil {
+		l.fields = []Field{}
+	}
+	l.fields = f
 }
