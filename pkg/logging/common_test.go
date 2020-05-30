@@ -31,14 +31,8 @@ func withLogger(c *Config, f func(*Logger, *observer.ObservedLogs)) {
 func commonFields(c *Config, o FieldOpts, additional ...zap.Field) []zap.Field {
 	fields := make([]zap.Field, 7)
 
-	var b bool
-	if o.IsReportable != nil {
-		b = *o.IsReportable
-	}
-
 	fields[0] = String("service", c.ServiceName).field
 	fields[1] = String("endpoint", o.Endpoint).field
-	fields[2] = Bool("isReportable", b).field
 	fields[3] = String("traceabilityID", o.TraceabilityID).field
 	fields[4] = String("correlationID", o.CorrelationID).field
 	fields[5] = String("userID", o.UserID).field

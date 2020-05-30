@@ -19,7 +19,6 @@ type Logger struct {
 	userID         string
 	endpoint       string
 	fields         []Field
-	isReportable   bool
 	internalLogger *zap.Logger
 }
 
@@ -99,7 +98,6 @@ type FieldOpts struct {
 	TraceabilityID string
 	ClientID       string
 	UserID         string
-	IsReportable   ReportFlag
 	// If set to true, the existing accumulated fields will be
 	// replaced with the fields passed in, a nil value writes the
 	// accumulated fields to an empty value
@@ -198,7 +196,6 @@ func (l *Logger) getZapFields(fields ...Field) []zap.Field {
 
 	zapped[0] = String("service", l.serviceName).field
 	zapped[1] = String("endpoint", l.endpoint).field
-	zapped[2] = Bool("isReportable", l.isReportable).field
 	zapped[3] = String("traceabilityID", l.traceabilityID).field
 	zapped[4] = String("correlationID", l.correlationID).field
 	zapped[5] = String("userID", l.userID).field
@@ -252,10 +249,6 @@ func (l *Logger) with(opts *FieldOpts, fields ...Field) *Logger {
 		l.userID = ""
 	} else if opts.UserID != "" {
 		l.userID = opts.UserID
-	}
-
-	if opts.IsReportable != nil {
-		l.isReportable = *opts.IsReportable
 	}
 
 	if opts.OverwriteAccumulatedFields {

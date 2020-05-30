@@ -16,10 +16,6 @@ type ReportFlag *bool
 var (
 	trueVar  = true
 	falseVar = false
-	// DoReport sets log messages to be sent to the data-pipeline
-	DoReport ReportFlag = &trueVar
-	// DontReport sets log messages not to be sent to the data-pipeline
-	DontReport ReportFlag = &falseVar
 )
 
 // Config encapsulates the various settings that may be applied to a logger
