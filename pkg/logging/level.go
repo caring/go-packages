@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+
+	"go.uber.org/zap/zapcore"
 )
 
 var errUnmarshalNilLevel = errors.New("can't unmarshal a nil *Level")
@@ -30,6 +32,13 @@ const (
 	PanicLevel
 	// FatalLevel logs a message, then calls os.Exit(1).
 	FatalLevel
+	// ReportLevel logs a message to the BI pipline
+	//
+	// TODO pending a cleaner implementation of custom levels from zap
+	// For now we use an arbitrarily high int, and create cores with our own zapcore.LevelEnabler
+	// to tell the core weather or not to log. With custom log levels, we only need to supply the writers for their
+	// cores, and could more dynamically use reporting as an actual log level
+	ReportLevel Level = 8
 
 	_minLevel = DebugLevel
 	_maxLevel = FatalLevel
@@ -130,12 +139,13 @@ func (l *Level) Set(s string) error {
 	return l.UnmarshalText([]byte(s))
 }
 
-// Get gets the level for the flag.Getter interface.
-func (l *Level) Get() interface{} {
-	return *l
-}
-
-// Enabled returns true if the given level is at or above this level.
-func (l Level) Enabled(lvl Level) bool {
-	return lvl >= l
+// Enabled implements the zapcore.LevelEnabler interface. It behaves the same
+// as zaps levels for any shared levels between this library and zap. If the enabled
+// level is our own report level, then it only returns true if the passed level is
+// ReportLevel
+func (l Level) Enabled(lvl zapcore.Level) bool {
+	if l == ReportLevel {
+		return Level(lvl) == ReportLevel
+	}
+	return _maxLevel >= Level(lvl) && Level(lvl) >= l
 }
