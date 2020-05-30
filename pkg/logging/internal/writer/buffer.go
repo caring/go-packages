@@ -26,7 +26,7 @@ const (
 // Buffer wraps a WriteSyncer in a buffer to improve performance,
 // if bufferSize = 0, we set it to defaultBufferSize
 // if flushInterval = 0, we set it to defaultFlushInterval
-func Buffer(writer io.Writer, bufferSize int, flushInterval time.Duration) (zapcore.WriteSyncer, io.Closer) {
+func Buffer(writer zapcore.WriteSyncer, bufferSize int, flushInterval time.Duration) (zapcore.WriteSyncer, io.Closer) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	if bufferSize == 0 {
@@ -43,7 +43,7 @@ func Buffer(writer io.Writer, bufferSize int, flushInterval time.Duration) (zapc
 	}
 
 	// bufio is not goroutine safe, so add lock writer here
-	ws := zapcore.Lock(bw)
+	locked := zapcore.Lock(bw)
 
 	// flush buffer every interval
 	// we do not need exit this goroutine explicitly
@@ -52,13 +52,12 @@ func Buffer(writer io.Writer, bufferSize int, flushInterval time.Duration) (zapc
 		case <-time.NewTicker(flushInterval).C:
 			// the background goroutine just keep syncing
 			// until the close func is called.
-			_ = ws.Sync()
+			_ = locked.Sync()
 		case <-ctx.Done():
 			return
 		}
 	}()
-
-	return ws, bw
+	return locked, bw
 }
 
 func (s *bufferWriterSyncer) Write(bs []byte) (int, error) {
