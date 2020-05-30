@@ -56,19 +56,14 @@ func NewLogger(config *Config) (*Logger, error) {
 	}
 
 	if !*c.DisableKinesis {
-		kcHookConstructor, err := newKinesisHook(c.KinesisStreamName, c.KinesisPartitionKey)
-
-		if kcHookConstructor == nil {
-			return nil, err
-		}
-
-		kcHook, err := kcHookConstructor.getHook()
-
+		core, err := buildKinesisCore(c.KinesisStreamReporting, c.KinesisStreamMonitoring, zapConfig.EncoderConfig, c.LogLevel)
 		if err != nil {
 			return nil, err
 		}
 
-		zapL = zapL.WithOptions(zap.Hooks(kcHook))
+		zapL = zapL.WithOptions(zap.WrapCore(func(zapcore.Core) zapcore.Core {
+			return core
+		}))
 	}
 
 	zapL = zapL.Named(c.LoggerName)

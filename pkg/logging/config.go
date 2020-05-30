@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/caring/go-packages/pkg/logging/internal/writer"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -31,23 +32,23 @@ type Config struct {
 	LogLevel Level
 	// Dev logging out puts in a format to be consumed by the console pretty-printer
 	EnableDevLogging *bool
-	// The name of the kinesis stream
-	KinesisStreamName string
-	// The partition key to determine which kinesis shard to write to
-	KinesisPartitionKey string
+	// The name of the kinesis stream where developer monitoring logs are piped through
+	KinesisStreamMonitoring string
+	// The name of the kinesis stream where business insight lgs are piped through
+	KinesisStreamReporting string
 	// Flag to disable kinesis
 	DisableKinesis *bool
 }
 
 func newDefaultConfig() *Config {
 	return &Config{
-		LoggerName:          "",
-		ServiceName:         "",
-		LogLevel:            InfoLevel,
-		EnableDevLogging:    &falseVar,
-		KinesisStreamName:   "",
-		KinesisPartitionKey: "",
-		DisableKinesis:      &trueVar,
+		LoggerName:              "",
+		ServiceName:             "",
+		LogLevel:                InfoLevel,
+		EnableDevLogging:        &falseVar,
+		KinesisStreamMonitoring: "",
+		KinesisStreamReporting:  "",
+		DisableKinesis:          &trueVar,
 	}
 }
 
@@ -92,16 +93,16 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		final.EnableDevLogging = &b
 	}
 
-	if c.KinesisStreamName != "" {
-		final.KinesisStreamName = c.KinesisStreamName
-	} else if s := os.Getenv("LOG_KINESIS_NAME"); s != "" {
-		final.KinesisStreamName = s
+	if c.KinesisStreamMonitoring != "" {
+		final.KinesisStreamMonitoring = c.KinesisStreamMonitoring
+	} else if s := os.Getenv("LOG_STREAM_MONITORING"); s != "" {
+		final.KinesisStreamMonitoring = s
 	}
 
-	if c.KinesisPartitionKey != "" {
-		final.KinesisPartitionKey = c.KinesisPartitionKey
-	} else if s := os.Getenv("LOG_KINESIS_KEY"); s != "" {
-		final.KinesisPartitionKey = s
+	if c.KinesisStreamReporting != "" {
+		final.KinesisStreamReporting = c.KinesisStreamReporting
+	} else if s := os.Getenv("LOG_STREAM_REPORTING"); s != "" {
+		final.KinesisStreamReporting = s
 	}
 
 	if c.DisableKinesis != nil {
@@ -138,4 +139,36 @@ func newZapDevelopmentConfig() zap.Config {
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
 	return c
+}
+
+func buildKinesisCore(reportStream, monitorStream string, enc zapcore.EncoderConfig, lvl Level) (zapcore.Core, error) {
+	cores := make([]zapcore.Core, 2)
+
+	monitorW, err := writer.NewKinesisWriter(monitorStream)
+	if err != nil {
+		return nil, err
+	}
+
+	monitorWs, _ := writer.Buffer(zapcore.AddSync(monitorW), 0, 0)
+
+	cores[0] = zapcore.NewCore(
+		zapcore.NewJSONEncoder(enc),
+		monitorWs,
+		lvl,
+	)
+
+	reportW, err := writer.NewKinesisWriter(monitorStream)
+	if err != nil {
+		return nil, err
+	}
+
+	reportWs, _ := writer.Buffer(zapcore.AddSync(reportW), 0, 0)
+
+	cores[1] = zapcore.NewCore(
+		zapcore.NewJSONEncoder(enc),
+		reportWs,
+		lvl,
+	)
+
+	return zapcore.NewTee(cores...), nil
 }
