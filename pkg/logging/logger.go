@@ -268,6 +268,8 @@ func (l *Logger) getZapFields(fields ...Field) []zap.Field {
 	return zapped
 }
 
+// With sets the internal fields with the provided options.
+// See the options struct for more details
 func (l *Logger) with(opts *FieldOpts, fields ...Field) *Logger {
 	if opts == nil {
 		l.fields = append(l.fields, fields...)

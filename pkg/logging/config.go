@@ -168,6 +168,7 @@ func newZapDevelopmentConfig() zap.Config {
 	return c
 }
 
+// builds a zap core configured at info log level. The underlying io stream that writes to kinesis is wrapped in a buffer
 func buildReportingCore(streamName string, enc zapcore.EncoderConfig, bufSize int64, flushInterval time.Duration) (zapcore.Core, io.Closer, error) {
 	w, err := writer.NewKinesisWriter(streamName)
 	if err != nil {
@@ -185,6 +186,7 @@ func buildReportingCore(streamName string, enc zapcore.EncoderConfig, bufSize in
 	return core, closer, nil
 }
 
+// builds a zap core configured at the provided log level. The underlying io stream that writes to kinesis is wrapped in a buffer
 func buildMonitoringCore(streamName string, enc zapcore.EncoderConfig, bufSize int64, flushInterval time.Duration, lvl zapcore.Level) (zapcore.Core, io.Closer, error) {
 	w, err := writer.NewKinesisWriter(streamName)
 	if err != nil {
