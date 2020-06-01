@@ -2,7 +2,7 @@
 package logging
 
 import (
-	"github.com/caring/go-packages/pkg/logging/exit"
+	"github.com/caring/go-packages/pkg/logging/internal/exit"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -117,21 +117,21 @@ type FieldOpts struct {
 // be set to a zero value. If nil options are passed in then the logger is simply cloned without change.
 func (l *Logger) NewChild(opts *FieldOpts, fields ...Field) *Logger {
 	new := *l
-	new.setInternalFields(opts, fields...)
+	new.with(opts, fields...)
 
 	return &new
 }
 
-// SetInternalFields sets the internal fields with the provided options.
+// With sets the internal fields with the provided options.
 // See the options struct for more details
-func (l *Logger) SetInternalFields(opts *FieldOpts, fields ...Field) {
-	l.setInternalFields(opts, fields...)
+func (l *Logger) With(opts *FieldOpts, fields ...Field) *Logger {
+	return l.with(opts, fields...)
 }
 
-func (l *Logger) setInternalFields(opts *FieldOpts, fields ...Field) {
+func (l *Logger) with(opts *FieldOpts, fields ...Field) *Logger {
 	if opts == nil {
 		l.fields = append(l.fields, fields...)
-		return
+		return l
 	}
 
 	if opts.ResetEndpoint {
@@ -173,6 +173,8 @@ func (l *Logger) setInternalFields(opts *FieldOpts, fields ...Field) {
 	} else {
 		l.accumulateFields(fields...)
 	}
+
+	return l
 }
 
 // accumulates the given fields onto the existing accumulated fields of logger
@@ -235,7 +237,7 @@ func (l *Logger) DPanic(message string, additionalFields ...Field) {
 	l.internalLogger.DPanic(message, f...)
 }
 
-// Fatal logs the message at fatal level output. This includes the additional fields provided,
+// Fatal logs the message at fatal level output, then calls os.Exit. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
 func (l *Logger) Fatal(message string, additionalFields ...Field) {
 	// This one method differs so that we may abstract away os.Exit into a mockable

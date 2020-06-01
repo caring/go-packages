@@ -3,8 +3,9 @@ package logging
 import (
 	"testing"
 
-	"github.com/caring/go-packages/pkg/logging/exit"
+	"github.com/caring/go-packages/pkg/logging/internal/exit"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
@@ -16,7 +17,7 @@ var config = &Config{
 
 func Test_LoggerNewChild(t *testing.T) {
 	withLogger(config, func(logger *Logger, logs *observer.ObservedLogs) {
-		logger.SetInternalFields(nil, Int64("foo", 42))
+		logger.With(nil, Int64("foo", 42))
 		// Child loggers should have copy-on-write semantics, so two children
 		// shouldn't stomp on each other's fields or affect the parent's fields.
 		logger.NewChild(nil, String("one", "two")).Info("")
@@ -28,6 +29,69 @@ func Test_LoggerNewChild(t *testing.T) {
 			{Context: commonFields(config, FieldOpts{}, zap.Int64("foo", 42), zap.String("three", "four"))},
 			{Context: commonFields(config, FieldOpts{}, zap.Int64("foo", 42))},
 		}, logs.AllUntimed(), "Unexpected cross-talk between child loggers.")
+	})
+}
+
+func Test_LoggerSetInternalFields(t *testing.T) {
+	t.Run("Overwriting existing values with non 0 values", func(t *testing.T) {
+		l := &Logger{
+			endpoint: "someendpoint",
+			clientID: "someclient",
+		}
+
+		l.With(&FieldOpts{
+			Endpoint: "newendpoint",
+			ClientID: "NewClient",
+			UserID:   "someuser",
+		})
+
+		assert.Equal(t, "newendpoint", l.endpoint, "Expected endpoint to change")
+		assert.Equal(t, "NewClient", l.clientID, "Expected client ID to change")
+		assert.Equal(t, "someuser", l.userID, "Expected user ID to change")
+		assert.Equal(t, "", l.correlationID, "Expected correlation ID not to change")
+	})
+
+	t.Run("Resets fields when options order it", func(t *testing.T) {
+		l := &Logger{
+			endpoint:      "someendpoint",
+			clientID:      "someclient",
+			correlationID: "someID",
+		}
+
+		l.With(&FieldOpts{
+			ResetEndpoint: true,
+			ResetClientID: true,
+		})
+
+		assert.Equal(t, "", l.endpoint, "Expected endpoint be reset")
+		assert.Equal(t, "", l.clientID, "Expected client ID be reset")
+		assert.Equal(t, "someID", l.correlationID, "Expected correlation ID not to change")
+	})
+
+	t.Run("Accumulates fields on existing ones", func(t *testing.T) {
+		s := String("one", "two")
+		l := &Logger{
+			fields: []Field{s},
+		}
+
+		ss := String("three", "four")
+		l.With(nil, ss)
+
+		require.Equal(t, 2, len(l.fields), "Expected fields to be accumulated on the logger")
+		assert.Equal(t, s, l.fields[0], "Expected existing fields not to be overwritten")
+		assert.Equal(t, ss, l.fields[1], "Expected the second field to be accumulated")
+	})
+
+	t.Run("Overwrites accumulated fields when the options require", func(t *testing.T) {
+		l := &Logger{
+			fields: []Field{String("one", "two")},
+		}
+
+		ss := String("three", "four")
+		l.With(&FieldOpts{OverwriteAccumulatedFields: true}, ss)
+
+		require.Equal(t, 1, len(l.fields), "Expected fields to be accumulated on the logger")
+		assert.Equal(t, ss, l.fields[0], "Expected the second field to be accumulated")
 	})
 }
 
