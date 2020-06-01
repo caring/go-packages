@@ -10,7 +10,6 @@ import (
 )
 
 type bufferWriterSyncer struct {
-	ws           zapcore.WriteSyncer
 	bufferWriter *bufio.Writer
 	cancel       context.CancelFunc
 }
@@ -85,5 +84,5 @@ func (s *bufferWriterSyncer) Sync() error {
 // regular flushes
 func (s *bufferWriterSyncer) Close() error {
 	s.cancel()
-	return s.ws.Sync()
+	return s.bufferWriter.Flush()
 }
