@@ -42,10 +42,9 @@ func NewLogger(config *Config) (*Logger, error) {
 	}
 
 	l := Logger{
-		serviceName:   c.ServiceName,
-		fields:        []Field{},
-		loggerName:    c.LoggerName,
-		reportingCore: zap.NewNop().Core(),
+		serviceName: c.ServiceName,
+		fields:      []Field{},
+		loggerName:  c.LoggerName,
 	}
 
 	if *c.EnableDevLogging {
@@ -59,6 +58,9 @@ func NewLogger(config *Config) (*Logger, error) {
 	// caller skip makes the caller appear as the line of code where this package is called,
 	// instead of where zap is called in this package
 	zapL, err := zapConfig.Build(zap.AddCallerSkip(1))
+	// set the reporting core to the default logging one for dev
+	// if we enable kinesis then it will go there
+	l.reportingCore = zapL.Core()
 
 	if err != nil {
 		return nil, err
