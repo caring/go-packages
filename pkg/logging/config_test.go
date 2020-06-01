@@ -62,7 +62,7 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 		assert.Equal(t, "monitoringstream2", result.KinesisStreamMonitoring, "Expected stream name to  kinesisstream2")
 		assert.Equal(t, "reportingstream2", result.KinesisStreamReporting, "Expected blank kinesis shard to be shard1")
 		assert.Equal(t, false, *result.DisableKinesis, "Expected kinesis to be enabled")
-		assert.Equal(t, 7*time.Second, result.FlushInterval, "Expected flush interval to be 10 seconds")
+		assert.Equal(t, 7*time.Second, result.FlushInterval, "Expected flush interval to be 7 seconds")
 		assert.Equal(t, int64(1024), result.BufferSize, "Expected buffer size to be 1024 bytes")
 	})
 
@@ -88,8 +88,8 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 		assert.Equal(t, "barmonitor1", result.KinesisStreamMonitoring, "Expected stream name to  barstream1")
 		assert.Equal(t, "barreport1", result.KinesisStreamReporting, "Expected blank kinesis shard to be barshard")
 		assert.Equal(t, true, *result.DisableKinesis, "Expected kinesis to be disabled")
-		assert.Equal(t, 13*time.Second, result.FlushInterval, "Expected flush interval to be 10 seconds")
-		assert.Equal(t, int64(1048576), result.BufferSize, "Expected buffer size to be 1024 bytes")
+		assert.Equal(t, 13*time.Second, result.FlushInterval, "Expected flush interval to be 13 seconds")
+		assert.Equal(t, int64(1048576), result.BufferSize, "Expected buffer size to be 1_048_576 bytes")
 	})
 
 	os.Setenv("SERVICE_NAME", "")
