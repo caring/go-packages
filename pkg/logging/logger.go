@@ -67,7 +67,13 @@ func NewLogger(config *Config) (*Logger, error) {
 	}
 
 	if !*c.DisableKinesis {
-		monitoringCore, monitorCloser, err := buildMonitoringCore(c.KinesisStreamMonitoring, zapConfig.EncoderConfig, zapcore.Level(c.LogLevel))
+		monitoringCore, monitorCloser, err := buildMonitoringCore(
+			c.KinesisStreamMonitoring,
+			zapConfig.EncoderConfig,
+			c.BufferSize,
+			c.FlushInterval,
+			zapcore.Level(c.LogLevel),
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +82,12 @@ func NewLogger(config *Config) (*Logger, error) {
 			return monitoringCore
 		}))
 
-		reportingCore, reportCloser, err := buildReportingCore(c.KinesisStreamReporting, zapConfig.EncoderConfig)
+		reportingCore, reportCloser, err := buildReportingCore(
+			c.KinesisStreamReporting,
+			zapConfig.EncoderConfig,
+			c.BufferSize,
+			c.FlushInterval,
+		)
 		if err != nil {
 			return nil, err
 		}

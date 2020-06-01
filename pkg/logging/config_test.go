@@ -3,6 +3,7 @@ package logging
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,8 @@ func Test_newDefaultConfig(t *testing.T) {
 	assert.Equal(t, "", c.KinesisStreamMonitoring, "Expected blank kinesis stream")
 	assert.Equal(t, "", c.KinesisStreamReporting, "Expected blank kinesis stream")
 	assert.Equal(t, true, *c.DisableKinesis, "Expected kinesis to be disabled")
+	assert.Equal(t, 10*time.Second, c.FlushInterval, "Expected flush interval to be 10 seconds")
+	assert.Equal(t, int64(256*1024), c.BufferSize, "Expected buffer size to be 262_144 bytes")
 }
 
 func Test_mergeAndPopulateConfig(t *testing.T) {
@@ -33,6 +36,8 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 		assert.Equal(t, "", result.KinesisStreamMonitoring, "Expected blank kinesis stream")
 		assert.Equal(t, "", result.KinesisStreamReporting, "Expected blank kinesis stream")
 		assert.Equal(t, true, *result.DisableKinesis, "Expected kinesis to be disabled")
+		assert.Equal(t, 10*time.Second, result.FlushInterval, "Expected flush interval to be 10 seconds")
+		assert.Equal(t, int64(256*1024), result.BufferSize, "Expected buffer size to be 262_144 bytes")
 	})
 
 	os.Setenv("SERVICE_NAME", "fooservice")
@@ -42,6 +47,8 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 	os.Setenv("LOG_STREAM_MONITORING", "monitoringstream2")
 	os.Setenv("LOG_STREAM_REPORTING", "reportingstream2")
 	os.Setenv("LOG_DISABLE_KINESIS", "FALSE")
+	os.Setenv("LOG_FLUSH_INTERVAL", "7")
+	os.Setenv("LOG_BUFFER_SIZE", "1")
 
 	t.Run("Initializes all config from environment correctly when given an empty config object", func(t *testing.T) {
 		c := &Config{}
@@ -55,6 +62,8 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 		assert.Equal(t, "monitoringstream2", result.KinesisStreamMonitoring, "Expected stream name to  kinesisstream2")
 		assert.Equal(t, "reportingstream2", result.KinesisStreamReporting, "Expected blank kinesis shard to be shard1")
 		assert.Equal(t, false, *result.DisableKinesis, "Expected kinesis to be enabled")
+		assert.Equal(t, 7*time.Second, result.FlushInterval, "Expected flush interval to be 10 seconds")
+		assert.Equal(t, int64(1024), result.BufferSize, "Expected buffer size to be 1024 bytes")
 	})
 
 	t.Run("Initializes all config from environment correctly when given a populated config object", func(t *testing.T) {
@@ -66,6 +75,8 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 			KinesisStreamMonitoring: "barmonitor1",
 			KinesisStreamReporting:  "barreport1",
 			DisableKinesis:          &trueVar,
+			FlushInterval:           13 * time.Second,
+			BufferSize:              1024 * 1024,
 		}
 		result, err := mergeAndPopulateConfig(c)
 
@@ -77,6 +88,8 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 		assert.Equal(t, "barmonitor1", result.KinesisStreamMonitoring, "Expected stream name to  barstream1")
 		assert.Equal(t, "barreport1", result.KinesisStreamReporting, "Expected blank kinesis shard to be barshard")
 		assert.Equal(t, true, *result.DisableKinesis, "Expected kinesis to be disabled")
+		assert.Equal(t, 13*time.Second, result.FlushInterval, "Expected flush interval to be 10 seconds")
+		assert.Equal(t, int64(1048576), result.BufferSize, "Expected buffer size to be 1024 bytes")
 	})
 
 	os.Setenv("SERVICE_NAME", "")
@@ -86,4 +99,6 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 	os.Setenv("LOG_STREAM_MONITORING", "")
 	os.Setenv("LOG_STREAM_REPORTING", "")
 	os.Setenv("LOG_DISABLE_KINESIS", "")
+	os.Setenv("LOG_FLUSH_INTERVAL", "")
+	os.Setenv("LOG_BUFFER_SIZE", "")
 }

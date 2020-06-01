@@ -16,10 +16,10 @@ type bufferWriterSyncer struct {
 
 // defaultBufferSize sizes the buffer associated with each WriterSync.
 const (
-	defaultBufferSize = 256 * 1024
+	DefaultBufferSize = 256 * 1024
 
 	// defaultFlushInterval means the default flush interval
-	defaultFlushInterval = 30 * time.Second
+	DefaultFlushInterval = 30 * time.Second
 )
 
 // Buffer wraps a WriteSyncer in a buffer to improve performance,
@@ -29,11 +29,11 @@ func Buffer(writer zapcore.WriteSyncer, bufferSize int, flushInterval time.Durat
 	ctx, cancel := context.WithCancel(context.Background())
 
 	if bufferSize == 0 {
-		bufferSize = defaultBufferSize
+		bufferSize = DefaultBufferSize
 	}
 
 	if flushInterval == 0 {
-		flushInterval = defaultFlushInterval
+		flushInterval = DefaultFlushInterval
 	}
 
 	bw := &bufferWriterSyncer{

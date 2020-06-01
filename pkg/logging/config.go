@@ -36,6 +36,12 @@ type Config struct {
 	KinesisStreamReporting string
 	// Flag to disable kinesis
 	DisableKinesis *bool
+	// If kinesis is enabled, this sets the time between each buffer flush
+	// of each core that writes to kinesis
+	FlushInterval time.Duration
+	// If kinesis is enabled this sets the byte size of the buffer for both kinesis cores. The number here
+	// will be multiplied by 1024
+	BufferSize int64
 }
 
 func newDefaultConfig() *Config {
@@ -47,6 +53,8 @@ func newDefaultConfig() *Config {
 		KinesisStreamMonitoring: "",
 		KinesisStreamReporting:  "",
 		DisableKinesis:          &trueVar,
+		FlushInterval:           10 * time.Second,
+		BufferSize:              writer.DefaultBufferSize,
 	}
 }
 
@@ -113,6 +121,27 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		final.DisableKinesis = &b
 	}
 
+	if c.BufferSize != 0 {
+		final.BufferSize = c.BufferSize
+	} else if s := os.Getenv("LOG_BUFFER_SIZE"); s != "" {
+		i, err := strconv.ParseInt(s, 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		final.BufferSize = i * 1024
+	}
+
+	if c.FlushInterval != 0 {
+		println(c.FlushInterval)
+		final.FlushInterval = c.FlushInterval
+	} else if s := os.Getenv("LOG_FLUSH_INTERVAL"); s != "" {
+		i, err := strconv.ParseInt(s, 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		final.FlushInterval = time.Duration(i) * time.Second
+	}
+
 	return final, nil
 }
 
@@ -139,13 +168,13 @@ func newZapDevelopmentConfig() zap.Config {
 	return c
 }
 
-func buildReportingCore(streamName string, enc zapcore.EncoderConfig) (zapcore.Core, io.Closer, error) {
+func buildReportingCore(streamName string, enc zapcore.EncoderConfig, bufSize int64, flushInterval time.Duration) (zapcore.Core, io.Closer, error) {
 	w, err := writer.NewKinesisWriter(streamName)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	buf, closer := writer.Buffer(zapcore.AddSync(w), 0, 10*time.Second)
+	buf, closer := writer.Buffer(zapcore.AddSync(w), int(bufSize), flushInterval)
 
 	core := zapcore.NewCore(
 		zapcore.NewJSONEncoder(enc),
@@ -156,13 +185,13 @@ func buildReportingCore(streamName string, enc zapcore.EncoderConfig) (zapcore.C
 	return core, closer, nil
 }
 
-func buildMonitoringCore(streamName string, enc zapcore.EncoderConfig, lvl zapcore.Level) (zapcore.Core, io.Closer, error) {
+func buildMonitoringCore(streamName string, enc zapcore.EncoderConfig, bufSize int64, flushInterval time.Duration, lvl zapcore.Level) (zapcore.Core, io.Closer, error) {
 	w, err := writer.NewKinesisWriter(streamName)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	buf, closer := writer.Buffer(zapcore.AddSync(w), 0, 10*time.Second)
+	buf, closer := writer.Buffer(zapcore.AddSync(w), int(bufSize), flushInterval)
 
 	core := zapcore.NewCore(
 		zapcore.NewJSONEncoder(enc),
