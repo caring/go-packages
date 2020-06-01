@@ -2,7 +2,11 @@
 package logging
 
 import (
+	"io"
+	"time"
+
 	"github.com/caring/go-packages/pkg/logging/internal/exit"
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -19,7 +23,11 @@ type Logger struct {
 	userID         string
 	endpoint       string
 	fields         []Field
+
+	loggerName     string
 	internalLogger *zap.Logger
+	closers        []io.Closer
+	reportingCore  zapcore.Core
 }
 
 // NewLogger initializes a new logger and connects it to a kinesis stream if enabled
@@ -34,8 +42,10 @@ func NewLogger(config *Config) (*Logger, error) {
 	}
 
 	l := Logger{
-		serviceName: c.ServiceName,
-		fields:      []Field{},
+		serviceName:   c.ServiceName,
+		fields:        []Field{},
+		loggerName:    c.LoggerName,
+		reportingCore: zap.NewNop().Core(),
 	}
 
 	if *c.EnableDevLogging {
@@ -55,14 +65,22 @@ func NewLogger(config *Config) (*Logger, error) {
 	}
 
 	if !*c.DisableKinesis {
-		core, err := buildKinesisCore(c.KinesisStreamReporting, c.KinesisStreamMonitoring, zapConfig.EncoderConfig, c.LogLevel)
+		monitoringCore, monitorCloser, err := buildMonitoringCore(c.KinesisStreamMonitoring, zapConfig.EncoderConfig, zapcore.Level(c.LogLevel))
 		if err != nil {
 			return nil, err
 		}
 
 		zapL = zapL.WithOptions(zap.WrapCore(func(zapcore.Core) zapcore.Core {
-			return core
+			return monitoringCore
 		}))
+
+		reportingCore, reportCloser, err := buildReportingCore(c.KinesisStreamReporting, zapConfig.EncoderConfig)
+		if err != nil {
+			return nil, err
+		}
+		l.reportingCore = reportingCore
+
+		l.closers = append(l.closers, reportCloser, monitorCloser)
 	}
 
 	zapL = zapL.Named(c.LoggerName)
@@ -88,7 +106,19 @@ func (l *Logger) GetInternalLogger() *zap.Logger {
 // Sync calls the underlying logger's Sync method, flushing any buffered log
 // entries. Applications should take care to call Sync before exiting.
 func (l *Logger) Sync() error {
-	return l.internalLogger.Sync()
+	var err error
+	err = multierr.Append(err, l.reportingCore.Sync())
+	return multierr.Append(err, l.internalLogger.Sync())
+}
+
+// Close cleanly shuts down and closes any underlying data streams
+// and their goroutines for the logger, if present
+func (l *Logger) Close() error {
+	var err error
+	for _, c := range l.closers {
+		err = multierr.Append(err, c.Close())
+	}
+	return err
 }
 
 // FieldOpts wraps internal field values that can be updated when spawning a child logger.
@@ -132,6 +162,15 @@ func (l *Logger) With(opts *FieldOpts, fields ...Field) *Logger {
 func (l *Logger) Debug(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
 	l.internalLogger.Debug(message, f...)
+}
+
+// Report logs the message at info level output to the BI pipeline. This includes the additional fields provided,
+// the standard fields and any fields accumulated on the logger.
+func (l *Logger) Report(message string, additionalFields ...Field) {
+	f := l.getZapFields(additionalFields...)
+	if ce := l.checkReport(message); ce != nil {
+		ce.Write(f...)
+	}
 }
 
 // Info logs the message at info level output. This includes the additional fields provided,
@@ -189,19 +228,20 @@ func (l *Logger) Fatal(message string, additionalFields ...Field) {
 
 // getZapFields aggregates the Logger fields into a typed and structured set of zap fields.
 func (l *Logger) getZapFields(fields ...Field) []zap.Field {
-	// 7 is the number of internal fields that appear on every log entry
-	total := 7 + len(fields) + len(l.fields)
+	var internalFieldcount int = 6
+	// 6 is the number of internal fields that appear on every log entry
+	total := internalFieldcount + len(fields) + len(l.fields)
 
 	zapped := make([]zap.Field, total)
 
 	zapped[0] = String("service", l.serviceName).field
 	zapped[1] = String("endpoint", l.endpoint).field
-	zapped[3] = String("traceabilityID", l.traceabilityID).field
-	zapped[4] = String("correlationID", l.correlationID).field
-	zapped[5] = String("userID", l.userID).field
-	zapped[6] = String("clientID", l.clientID).field
+	zapped[2] = String("traceabilityID", l.traceabilityID).field
+	zapped[3] = String("correlationID", l.correlationID).field
+	zapped[4] = String("userID", l.userID).field
+	zapped[5] = String("clientID", l.clientID).field
 
-	i := 7
+	i := internalFieldcount
 	for _, f := range l.fields {
 		zapped[i] = f.field
 		i++
@@ -272,4 +312,23 @@ func (l *Logger) writeFields(f ...Field) {
 		l.fields = []Field{}
 	}
 	l.fields = f
+}
+
+// generate a checked entry for a reportable log message. CE
+// will always write to the BI pipe. Because we know the level
+// will always be info when this is called, we can safely skip
+// error set up and exhaustive checking that is done
+// in the standard logger method
+func (l *Logger) checkReport(msg string) *zapcore.CheckedEntry {
+	if !l.reportingCore.Enabled(zapcore.InfoLevel) {
+		return nil
+	}
+	ent := zapcore.Entry{
+		LoggerName: l.loggerName,
+		Time:       time.Now(),
+		// TODO actually log at report level here once zap has a better API for custom log levels
+		Level:   zapcore.InfoLevel,
+		Message: msg,
+	}
+	return l.reportingCore.Check(ent, nil)
 }
