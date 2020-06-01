@@ -13,14 +13,14 @@ type Logger struct {
 	serviceName string
 	// a correlation ID is used to track a single user request through a
 	// network of microservices.
-	correlationID    string
-	traceabilityID   string
-	clientID         string
-	userID           string
-	endpoint         string
-	additionalFields []Field
-	isReportable     bool
-	internalLogger   *zap.Logger
+	correlationID  string
+	traceabilityID string
+	clientID       string
+	userID         string
+	endpoint       string
+	fields         []Field
+	isReportable   bool
+	internalLogger *zap.Logger
 }
 
 // NewLogger initializes a new logger and connects it to a kinesis stream if enabled
@@ -34,26 +34,13 @@ func NewLogger(config *Config) (*Logger, error) {
 		return nil, err
 	}
 
-	l := Logger{}
+	l := Logger{
+		serviceName: c.ServiceName,
+		fields:      []Field{},
+	}
 
 	if *c.EnableDevLogging {
-		zapConfig = zap.NewDevelopmentConfig()
-		zapConfig.OutputPaths = []string{"stdout"}
-		zapConfig.ErrorOutputPaths = []string{"stdout"}
-		// This displays log messages in a format compatable with the zap-pretty print library
-		zapConfig.EncoderConfig = zapcore.EncoderConfig{
-			TimeKey:        "ts",
-			LevelKey:       "level",
-			NameKey:        "logger",
-			CallerKey:      "caller",
-			MessageKey:     "msg",
-			StacktraceKey:  "stacktrace",
-			LineEnding:     zapcore.DefaultLineEnding,
-			EncodeLevel:    zapcore.CapitalColorLevelEncoder,
-			EncodeTime:     zapcore.EpochTimeEncoder,
-			EncodeDuration: zapcore.SecondsDurationEncoder,
-			EncodeCaller:   zapcore.ShortCallerEncoder,
-		}
+		zapConfig = newZapDevelopmentConfig()
 	} else {
 		zapConfig = zap.NewProductionConfig()
 	}
@@ -104,118 +91,102 @@ func (l *Logger) GetInternalLogger() *zap.Logger {
 	return l.internalLogger
 }
 
-// InternalFields wraps internal field values that can be updated when spawning a child logger.
-type InternalFields struct {
+// FieldOpts wraps internal field values that can be updated when spawning a child logger.
+type FieldOpts struct {
 	Endpoint       string
 	CorrelationID  string
 	TraceabilityID string
 	ClientID       string
 	UserID         string
-	IsReportable   *bool
+	IsReportable   ReportFlag
+	// If set to true, the existing accumulated fields will be
+	// replaced with the fields passed in, a nil value writes the
+	// accumulated fields to an empty value
+	OverwriteAccumulatedFields bool
+	// Reset values mean the field will be set to its 0 value,
+	// regardless of what is passed into the opts object
+	ResetEndpoint       bool
+	ResetCorrelationID  bool
+	ResetTraceabilityID bool
+	ResetClientID       bool
+	ResetUserID         bool
 }
 
 // NewChild clones logger and returns a child instance where any internal fields are overwritten
-// with any non 0 values passed in. Additional fields are accumulated on existing ones instead of being
-// overwritten
-func (l *Logger) NewChild(i *InternalFields, additionalFields ...Field) *Logger {
+// with any non 0 values passed in, or if the field reset is set to true then the field will
+// be set to a zero value. If nil options are passed in then the logger is simply cloned without change.
+func (l *Logger) NewChild(opts *FieldOpts, fields ...Field) *Logger {
 	new := *l
-
-	if i.Endpoint != "" {
-		new.endpoint = i.Endpoint
-	}
-
-	if i.CorrelationID != "" {
-		new.correlationID = i.CorrelationID
-	}
-
-	if i.TraceabilityID != "" {
-		new.traceabilityID = i.TraceabilityID
-	}
-
-	if i.ClientID != "" {
-		new.clientID = i.ClientID
-	}
-
-	if i.UserID != "" {
-		new.userID = i.UserID
-	}
-
-	if i.IsReportable != nil {
-		new.isReportable = *i.IsReportable
-	}
-
-	if additionalFields != nil {
-		new.AppendAdditionalFields(additionalFields...)
-	}
+	new.setInternalFields(opts, fields...)
 
 	return &new
 }
 
-// SetEndpoint sets the endpoint string to the existing Logger instance.
-func (l *Logger) SetEndpoint(endpoint string) *Logger {
-	l.endpoint = endpoint
-
-	return l
+// SetInternalFields sets the internal fields with the provided options.
+// See the options struct for more details
+func (l *Logger) SetInternalFields(opts *FieldOpts, fields ...Field) {
+	l.setInternalFields(opts, fields...)
 }
 
-// SetServiceName sets the serviceName string to the existing Logger instance.
-func (l *Logger) SetServiceName(serviceName string) *Logger {
-	l.serviceName = serviceName
-
-	return l
-}
-
-// SetCorrelationID sets the string to the Logger instance.
-func (l *Logger) SetCorrelationID(correlationID string) *Logger {
-	l.correlationID = correlationID
-
-	return l
-}
-
-// SetClientID sets the string to the Logger instance.
-func (l *Logger) SetClientID(clientID string) *Logger {
-	l.clientID = clientID
-
-	return l
-}
-
-// SetTraceabilityID sets the string to the Logger instance.
-func (l *Logger) SetTraceabilityID(traceabilityID string) *Logger {
-	l.traceabilityID = traceabilityID
-
-	return l
-}
-
-// SetUserID sets the string userID to the Logger instance.
-func (l *Logger) SetUserID(userID string) *Logger {
-	l.userID = userID
-
-	return l
-}
-
-// SetIsReportable sets the boolean isReportable to the Logger instance.
-func (l *Logger) SetIsReportable(isReportable bool) *Logger {
-	l.isReportable = isReportable
-
-	return l
-}
-
-// SetAdditionalFields overwrites the existing accumulated fields on the logger
-func (l *Logger) SetAdditionalFields(additionalFields ...Field) *Logger {
-	l.additionalFields = additionalFields
-
-	return l
-}
-
-// AppendAdditionalFields accumulates fields onto the logger
-func (l *Logger) AppendAdditionalFields(additionalFields ...Field) *Logger {
-	if l.additionalFields == nil {
-		l.additionalFields = additionalFields
-	} else if additionalFields != nil {
-		l.additionalFields = append(l.additionalFields, additionalFields...)
+func (l *Logger) setInternalFields(opts *FieldOpts, fields ...Field) {
+	if opts == nil {
+		l.fields = append(l.fields, fields...)
+		return
 	}
 
-	return l
+	if opts.ResetEndpoint {
+		l.endpoint = ""
+	} else if opts.Endpoint != "" {
+		l.endpoint = opts.Endpoint
+	}
+
+	if opts.ResetCorrelationID {
+		l.correlationID = ""
+	} else if opts.CorrelationID != "" {
+		l.correlationID = opts.CorrelationID
+	}
+
+	if opts.ResetTraceabilityID {
+		l.traceabilityID = ""
+	} else if opts.TraceabilityID != "" {
+		l.traceabilityID = opts.TraceabilityID
+	}
+
+	if opts.ResetClientID {
+		l.clientID = ""
+	} else if opts.ClientID != "" {
+		l.clientID = opts.ClientID
+	}
+
+	if opts.ResetUserID {
+		l.userID = ""
+	} else if opts.UserID != "" {
+		l.userID = opts.UserID
+	}
+
+	if opts.IsReportable != nil {
+		l.isReportable = *opts.IsReportable
+	}
+
+	if opts.OverwriteAccumulatedFields {
+		l.writeFields(fields...)
+	} else {
+		l.accumulateFields(fields...)
+	}
+}
+
+// accumulates the given fields onto the existing accumulated fields of logger
+func (l *Logger) accumulateFields(f ...Field) {
+	l.fields = append(l.fields, f...)
+}
+
+// overwrites the accumulated fields of logger with the fields passed in,
+// a nil argument writes an empty slice to the fields
+func (l *Logger) writeFields(f ...Field) {
+	if f == nil {
+		l.fields = []Field{}
+	}
+	l.fields = f
 }
 
 // Debug logs the message at debug level output. This includes the additional fields provided,
@@ -279,37 +250,30 @@ func (l *Logger) Fatal(message string, additionalFields ...Field) {
 }
 
 // getZapFields aggregates the Logger fields into a typed and structured set of zap fields.
-func (l *Logger) getZapFields(additionalFields ...Field) []zap.Field {
-	ad := l.additionalFields
-	if ad == nil {
-		ad = additionalFields
-	} else if len(additionalFields) > 0 {
-		ad = append(ad, additionalFields...)
+func (l *Logger) getZapFields(fields ...Field) []zap.Field {
+	// 7 is the number of internal fields that appear on every log entry
+	total := 7 + len(fields) + len(l.fields)
+
+	zapped := make([]zap.Field, total)
+
+	zapped[0] = String("service", l.serviceName).field
+	zapped[1] = String("endpoint", l.endpoint).field
+	zapped[2] = Bool("isReportable", l.isReportable).field
+	zapped[3] = String("traceabilityID", l.traceabilityID).field
+	zapped[4] = String("correlationID", l.correlationID).field
+	zapped[5] = String("userID", l.userID).field
+	zapped[6] = String("clientID", l.clientID).field
+
+	i := 7
+	for _, f := range l.fields {
+		zapped[i] = f.field
+		i++
 	}
 
-	sliceTotal := 7
-
-	if ad != nil && len(ad) > 0 {
-		sliceTotal = sliceTotal + len(ad)
+	for _, f := range fields {
+		zapped[i] = f.field
+		i++
 	}
 
-	fields := make([]zap.Field, sliceTotal)
-
-	fields[0] = String("service", l.serviceName).field
-	fields[1] = String("endpoint", l.endpoint).field
-	fields[2] = Bool("isReportable", l.isReportable).field
-	fields[3] = String("traceabilityID", l.traceabilityID).field
-	fields[4] = String("correlationID", l.correlationID).field
-	fields[5] = String("userID", l.userID).field
-	fields[6] = String("clientID", l.clientID).field
-
-	if len(ad) > 0 {
-		ind := 7
-		for _, fieldData := range ad {
-			fields[ind] = fieldData.field
-			ind++
-		}
-	}
-
-	return fields
+	return zapped
 }
