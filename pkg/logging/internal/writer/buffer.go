@@ -76,10 +76,13 @@ func (s *bufferWriterSyncer) Write(bs []byte) (int, error) {
 	return s.bufferWriter.Write(bs)
 }
 
+// Sync flushes the underlying buffer into its write destination
 func (s *bufferWriterSyncer) Sync() error {
 	return s.bufferWriter.Flush()
 }
 
+// Close syncs the buffer and closes the underlying go routines that manage
+// regular flushes
 func (s *bufferWriterSyncer) Close() error {
 	s.cancel()
 	return s.ws.Sync()
