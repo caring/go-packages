@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLevelString(t *testing.T) {
+func Test_LevelString(t *testing.T) {
 	tests := map[Level]string{
 		DebugLevel:  "debug",
 		InfoLevel:   "info",
@@ -27,7 +27,7 @@ func TestLevelString(t *testing.T) {
 	}
 }
 
-func TestLevelText(t *testing.T) {
+func Test_LevelText(t *testing.T) {
 	tests := []struct {
 		text  string
 		level Level
@@ -56,7 +56,7 @@ func TestLevelText(t *testing.T) {
 	}
 }
 
-func TestCapitalLevelsParse(t *testing.T) {
+func Test_CapitalLevelsParse(t *testing.T) {
 	tests := []struct {
 		text  string
 		level Level
@@ -77,7 +77,7 @@ func TestCapitalLevelsParse(t *testing.T) {
 	}
 }
 
-func TestWeirdLevelsParse(t *testing.T) {
+func Test_WeirdLevelsParse(t *testing.T) {
 	tests := []struct {
 		text  string
 		level Level
@@ -108,7 +108,7 @@ func TestWeirdLevelsParse(t *testing.T) {
 	}
 }
 
-func TestLevelNils(t *testing.T) {
+func Test_LevelNils(t *testing.T) {
 	var l *Level
 
 	// The String() method will not handle nil level properly.
@@ -124,13 +124,13 @@ func TestLevelNils(t *testing.T) {
 	assert.Equal(t, errUnmarshalNilLevel, err, "Expected to error unmarshalling into a nil Level.")
 }
 
-func TestLevelUnmarshalUnknownText(t *testing.T) {
+func Test_LevelUnmarshalUnknownText(t *testing.T) {
 	var l Level
 	err := l.UnmarshalText([]byte("foo"))
 	assert.Contains(t, err.Error(), "unrecognized level", "Expected unmarshaling arbitrary text to fail.")
 }
 
-func TestLevelAsFlagValue(t *testing.T) {
+func Test_LevelAsFlagValue(t *testing.T) {
 	var (
 		buf bytes.Buffer
 		lvl Level
