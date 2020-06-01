@@ -5,16 +5,17 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/google/uuid"
+	"github.com/aws/aws-sdk-go/service/firehose"
 )
 
 type kinesisWriter struct {
-	*kinesis.Kinesis
+	*firehose.Firehose
 	streamName string
 }
 
-func newKinesisWriter(streamName string) (io.Writer, error) {
+// NewKinesisWriter creates an io.Writer that will write to the given kinesis stream name.NewKinesisWriter
+// All other AWS configuration is picked up from the runtime hardware via environnement variables. See AWS docs
+func NewKinesisWriter(streamName string) (io.Writer, error) {
 	ses, err := session.NewSession(&aws.Config{
 		CredentialsChainVerboseErrors: aws.Bool(true),
 	})
@@ -22,29 +23,26 @@ func newKinesisWriter(streamName string) (io.Writer, error) {
 		return nil, err
 	}
 
-	ks := kinesis.New(ses)
+	h := firehose.New(ses)
 
-	_, err = ks.DescribeStream(&kinesis.DescribeStreamInput{StreamName: aws.String(streamName)})
+	_, err = h.DescribeDeliveryStream(&firehose.DescribeDeliveryStreamInput{DeliveryStreamName: aws.String(streamName)})
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &kinesisWriter{ks, streamName}, nil
+	return &kinesisWriter{h, streamName}, nil
 
 }
 
+// Write writes one byte slice as one kinesis record to a random shard,
+// and blocks until the response is returned
 func (k *kinesisWriter) Write(p []byte) (n int, err error) {
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return 0, err
-	}
-	key := id.String()
-
-	_, err = k.PutRecord(&kinesis.PutRecordInput{
-		Data:         p,
-		StreamName:   aws.String(k.streamName),
-		PartitionKey: &key,
+	_, err = k.PutRecord(&firehose.PutRecordInput{
+		Record: &firehose.Record{
+			Data: p,
+		},
+		DeliveryStreamName: aws.String(k.streamName),
 	})
 	if err != nil {
 		return 0, err
