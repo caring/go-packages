@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/caring/go-packages/pkg/logging/internal/writer"
 	"go.uber.org/zap"
@@ -144,7 +145,7 @@ func buildReportingCore(streamName string, enc zapcore.EncoderConfig) (zapcore.C
 		return nil, nil, err
 	}
 
-	buf, closer := writer.Buffer(zapcore.AddSync(w), 0, 0)
+	buf, closer := writer.Buffer(zapcore.AddSync(w), 0, 10*time.Second)
 
 	core := zapcore.NewCore(
 		zapcore.NewJSONEncoder(enc),
@@ -161,7 +162,7 @@ func buildMonitoringCore(streamName string, enc zapcore.EncoderConfig, lvl zapco
 		return nil, nil, err
 	}
 
-	buf, closer := writer.Buffer(zapcore.AddSync(w), 0, 0)
+	buf, closer := writer.Buffer(zapcore.AddSync(w), 0, 10*time.Second)
 
 	core := zapcore.NewCore(
 		zapcore.NewJSONEncoder(enc),
