@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"io"
 	"os"
 	"strconv"
 
@@ -137,34 +138,36 @@ func newZapDevelopmentConfig() zap.Config {
 	return c
 }
 
-func buildKinesisCore(reportStream, monitorStream string, enc zapcore.EncoderConfig, lvl Level) (zapcore.Core, error) {
-	cores := make([]zapcore.Core, 2)
-
-	monitorW, err := writer.NewKinesisWriter(monitorStream)
+func buildReportingCore(streamName string, enc zapcore.EncoderConfig) (zapcore.Core, io.Closer, error) {
+	w, err := writer.NewKinesisWriter(streamName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	monitorWs, _ := writer.Buffer(zapcore.AddSync(monitorW), 0, 0)
+	buf, closer := writer.Buffer(zapcore.AddSync(w), 0, 0)
 
-	cores[0] = zapcore.NewCore(
+	core := zapcore.NewCore(
 		zapcore.NewJSONEncoder(enc),
-		monitorWs,
+		buf,
+		zapcore.InfoLevel,
+	)
+
+	return core, closer, nil
+}
+
+func buildMonitoringCore(streamName string, enc zapcore.EncoderConfig, lvl zapcore.Level) (zapcore.Core, io.Closer, error) {
+	w, err := writer.NewKinesisWriter(streamName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	buf, closer := writer.Buffer(zapcore.AddSync(w), 0, 0)
+
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(enc),
+		buf,
 		lvl,
 	)
 
-	reportW, err := writer.NewKinesisWriter(monitorStream)
-	if err != nil {
-		return nil, err
-	}
-
-	reportWs, _ := writer.Buffer(zapcore.AddSync(reportW), 0, 0)
-
-	cores[1] = zapcore.NewCore(
-		zapcore.NewJSONEncoder(enc),
-		reportWs,
-		lvl,
-	)
-
-	return zapcore.NewTee(cores...), nil
+	return core, closer, nil
 }
