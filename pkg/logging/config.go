@@ -1,9 +1,12 @@
 package logging
 
 import (
+	"io"
 	"os"
 	"strconv"
+	"time"
 
+	"github.com/caring/go-packages/pkg/logging/internal/writer"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -15,10 +18,6 @@ type ReportFlag *bool
 var (
 	trueVar  = true
 	falseVar = false
-	// DoReport sets log messages to be sent to the data-pipeline
-	DoReport ReportFlag = &trueVar
-	// DontReport sets log messages not to be sent to the data-pipeline
-	DontReport ReportFlag = &falseVar
 )
 
 // Config encapsulates the various settings that may be applied to a logger
@@ -31,23 +30,30 @@ type Config struct {
 	LogLevel Level
 	// Dev logging out puts in a format to be consumed by the console pretty-printer
 	EnableDevLogging *bool
-	// The name of the kinesis stream
-	KinesisStreamName string
-	// The partition key to determine which kinesis shard to write to
-	KinesisPartitionKey string
+	// The name of the kinesis stream where developer monitoring logs are piped through
+	KinesisStreamMonitoring string
+	// The name of the kinesis stream where business insight lgs are piped through
+	KinesisStreamReporting string
 	// Flag to disable kinesis
 	DisableKinesis *bool
+	// If kinesis is enabled, this sets the time between each buffer flush
+	// of each core that writes to kinesis
+	FlushInterval time.Duration
+	// If kinesis is enabled this sets the byte size of the buffer for both kinesis cores.
+	BufferSize int64
 }
 
 func newDefaultConfig() *Config {
 	return &Config{
-		LoggerName:          "",
-		ServiceName:         "",
-		LogLevel:            InfoLevel,
-		EnableDevLogging:    &falseVar,
-		KinesisStreamName:   "",
-		KinesisPartitionKey: "",
-		DisableKinesis:      &trueVar,
+		LoggerName:              "",
+		ServiceName:             "",
+		LogLevel:                InfoLevel,
+		EnableDevLogging:        &falseVar,
+		KinesisStreamMonitoring: "",
+		KinesisStreamReporting:  "",
+		DisableKinesis:          &trueVar,
+		FlushInterval:           10 * time.Second,
+		BufferSize:              writer.DefaultBufferSize,
 	}
 }
 
@@ -92,16 +98,16 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		final.EnableDevLogging = &b
 	}
 
-	if c.KinesisStreamName != "" {
-		final.KinesisStreamName = c.KinesisStreamName
-	} else if s := os.Getenv("LOG_KINESIS_NAME"); s != "" {
-		final.KinesisStreamName = s
+	if c.KinesisStreamMonitoring != "" {
+		final.KinesisStreamMonitoring = c.KinesisStreamMonitoring
+	} else if s := os.Getenv("LOG_STREAM_MONITORING"); s != "" {
+		final.KinesisStreamMonitoring = s
 	}
 
-	if c.KinesisPartitionKey != "" {
-		final.KinesisPartitionKey = c.KinesisPartitionKey
-	} else if s := os.Getenv("LOG_KINESIS_KEY"); s != "" {
-		final.KinesisPartitionKey = s
+	if c.KinesisStreamReporting != "" {
+		final.KinesisStreamReporting = c.KinesisStreamReporting
+	} else if s := os.Getenv("LOG_STREAM_REPORTING"); s != "" {
+		final.KinesisStreamReporting = s
 	}
 
 	if c.DisableKinesis != nil {
@@ -112,6 +118,26 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 			return nil, err
 		}
 		final.DisableKinesis = &b
+	}
+
+	if c.BufferSize != 0 {
+		final.BufferSize = c.BufferSize
+	} else if s := os.Getenv("LOG_BUFFER_SIZE"); s != "" {
+		i, err := strconv.ParseInt(s, 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		final.BufferSize = i
+	}
+
+	if c.FlushInterval != 0 {
+		final.FlushInterval = c.FlushInterval
+	} else if s := os.Getenv("LOG_FLUSH_INTERVAL"); s != "" {
+		i, err := strconv.ParseInt(s, 0, 64)
+		if err != nil {
+			return nil, err
+		}
+		final.FlushInterval = time.Duration(i) * time.Second
 	}
 
 	return final, nil
@@ -138,4 +164,40 @@ func newZapDevelopmentConfig() zap.Config {
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
 	return c
+}
+
+// builds a zap core configured at info log level. The underlying io stream that writes to kinesis is wrapped in a buffer
+func buildReportingCore(streamName string, enc zapcore.EncoderConfig, bufSize int64, flushInterval time.Duration) (zapcore.Core, io.Closer, error) {
+	w, err := writer.NewKinesisWriter(streamName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	buf, closer := writer.Buffer(zapcore.AddSync(w), int(bufSize), flushInterval)
+
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(enc),
+		buf,
+		zapcore.InfoLevel,
+	)
+
+	return core, closer, nil
+}
+
+// builds a zap core configured at the provided log level. The underlying io stream that writes to kinesis is wrapped in a buffer
+func buildMonitoringCore(streamName string, enc zapcore.EncoderConfig, bufSize int64, flushInterval time.Duration, lvl zapcore.Level) (zapcore.Core, io.Closer, error) {
+	w, err := writer.NewKinesisWriter(streamName)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	buf, closer := writer.Buffer(zapcore.AddSync(w), int(bufSize), flushInterval)
+
+	core := zapcore.NewCore(
+		zapcore.NewJSONEncoder(enc),
+		buf,
+		lvl,
+	)
+
+	return core, closer, nil
 }

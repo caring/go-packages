@@ -129,13 +129,3 @@ func (l *Level) unmarshalText(text []byte) bool {
 func (l *Level) Set(s string) error {
 	return l.UnmarshalText([]byte(s))
 }
-
-// Get gets the level for the flag.Getter interface.
-func (l *Level) Get() interface{} {
-	return *l
-}
-
-// Enabled returns true if the given level is at or above this level.
-func (l Level) Enabled(lvl Level) bool {
-	return lvl >= l
-}

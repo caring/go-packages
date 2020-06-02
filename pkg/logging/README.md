@@ -14,9 +14,11 @@ SERVICE_NAME | The service name | "" Empty String
 LOG_NAME | The name of the logger | "" Empty String
 LOG_LEVEL | The lowest logged level. All all levels above this will be logged to all enabled outputs | "INFO"
 LOG_ENABLE_DEV | Boolean which enables the developer log configuration compatible with zap-pretty | "FALSE"
-LOG_KINESIS_NAME | The name of the kinesis stream to log to | "" Empty String
-LOG_KINESIS_KEY | The partition key used by the kinesis writer to determine which shard to write to | "" Empty String
+LOG_STREAM_MONITORING | The name of the kinesis stream where developer monitoring logs are piped through | "" Empty String
+LOG_STREAM_REPORTING | The name of the kinesis stream where business insight lgs are piped through | "" Empty String
 LOG_DISABLE_KINESIS | Boolean flag to disable out put to kinesis, generally only enabled in Prod | "TRUE"
+LOG_FLUSH_INTERVAL | If kinesis is enabled, this sets the number of seconds between buffer flushes for each underlying kinesis io stream | "10"
+LOG_BUFFER_SIZE | If kinesis is enabled, this sets the byte size of each of the kinesis io buffers | "262144" (256 * 1024)
 
 
 ### Usage

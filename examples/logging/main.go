@@ -5,13 +5,13 @@ import "github.com/caring/go-packages/pkg/logging"
 func main() {
 	t := true
 	parent, err := logging.NewLogger(&logging.Config{
-		LoggerName:          "logger-1",
-		ServiceName:         "call-scoring",
-		LogLevel:            logging.DebugLevel,
-		EnableDevLogging:    &t,
-		KinesisStreamName:   "stream-1",
-		KinesisPartitionKey: "some-key",
-		DisableKinesis:      &t,
+		LoggerName:              "logger-1",
+		ServiceName:             "call-scoring",
+		LogLevel:                logging.DebugLevel,
+		EnableDevLogging:        &t,
+		KinesisStreamMonitoring: "stream-1-monitoring",
+		KinesisStreamReporting:  "stream-1-reporting",
+		DisableKinesis:          &t,
 	})
 
 	if err != nil {
@@ -20,8 +20,7 @@ func main() {
 
 	child := parent.NewChild(
 		&logging.FieldOpts{
-			Endpoint:     "Some-endpoint",
-			IsReportable: &t,
+			Endpoint: "Some-endpoint",
 		},
 		logging.String("child", "this wont be in the parent"),
 	)
@@ -32,9 +31,6 @@ func main() {
 
 	parent.Warn("here's another waring, see no child field!")
 
-	child.With(&logging.FieldOpts{
-		IsReportable: logging.DoReport,
-	})
 	child.With(&logging.FieldOpts{
 		CorrelationID: "someID",
 	})
@@ -56,4 +52,6 @@ func main() {
 	a := []map[string]interface{}{obj, obj}
 
 	parent.Warn("Look how any field can marshal complex objects, this is expensive!", logging.Any("map", m), logging.Any("array", a))
+
+	parent.Report("This log entry will go to the BI pipeline and be loaded into our warehouse if kinesis is enabled!")
 }
