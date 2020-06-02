@@ -39,8 +39,7 @@ type Config struct {
 	// If kinesis is enabled, this sets the time between each buffer flush
 	// of each core that writes to kinesis
 	FlushInterval time.Duration
-	// If kinesis is enabled this sets the byte size of the buffer for both kinesis cores. The number here
-	// will be multiplied by 1024
+	// If kinesis is enabled this sets the byte size of the buffer for both kinesis cores.
 	BufferSize int64
 }
 
@@ -128,11 +127,10 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		if err != nil {
 			return nil, err
 		}
-		final.BufferSize = i * 1024
+		final.BufferSize = i
 	}
 
 	if c.FlushInterval != 0 {
-		println(c.FlushInterval)
 		final.FlushInterval = c.FlushInterval
 	} else if s := os.Getenv("LOG_FLUSH_INTERVAL"); s != "" {
 		i, err := strconv.ParseInt(s, 0, 64)
