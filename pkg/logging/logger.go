@@ -106,6 +106,7 @@ func NewLogger(config *Config) (*Logger, error) {
 func NewNopLogger() *Logger {
 	return &Logger{
 		internalLogger: zap.NewNop(),
+		reportingCore:  zap.NewNop().Core(),
 	}
 }
 
