@@ -48,7 +48,7 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 	os.Setenv("LOG_STREAM_REPORTING", "reportingstream2")
 	os.Setenv("LOG_DISABLE_KINESIS", "FALSE")
 	os.Setenv("LOG_FLUSH_INTERVAL", "7")
-	os.Setenv("LOG_BUFFER_SIZE", "1")
+	os.Setenv("LOG_BUFFER_SIZE", "1024")
 
 	t.Run("Initializes all config from environment correctly when given an empty config object", func(t *testing.T) {
 		c := &Config{}
