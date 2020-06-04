@@ -3,7 +3,6 @@ package logging
 
 import (
 	"io"
-	"time"
 
 	"github.com/caring/go-packages/pkg/logging/internal/exit"
 	"go.uber.org/multierr"
@@ -24,10 +23,10 @@ type Logger struct {
 	endpoint       string
 	fields         []Field
 
-	loggerName     string
-	internalLogger *zap.Logger
-	closers        []io.Closer
-	reportingCore  zapcore.Core
+	loggerName      string
+	monitorLogger   *zap.Logger
+	reportingLogger *zap.Logger
+	closers         []io.Closer
 }
 
 // NewLogger initializes a new logger and connects it to a kinesis stream if enabled
@@ -58,9 +57,6 @@ func NewLogger(config *Config) (*Logger, error) {
 	// caller skip makes the caller appear as the line of code where this package is called,
 	// instead of where zap is called in this package
 	zapL, err := zapConfig.Build(zap.AddCallerSkip(1))
-	// set the reporting core to the default logging one for dev
-	// if we enable kinesis then it will go there
-	l.reportingCore = zapL.Core()
 
 	if err != nil {
 		return nil, err
@@ -78,7 +74,7 @@ func NewLogger(config *Config) (*Logger, error) {
 			return nil, err
 		}
 
-		zapL = zapL.WithOptions(zap.WrapCore(func(zapcore.Core) zapcore.Core {
+		l.monitorLogger = zapL.WithOptions(zap.WrapCore(func(zapcore.Core) zapcore.Core {
 			return monitoringCore
 		}))
 
@@ -91,13 +87,15 @@ func NewLogger(config *Config) (*Logger, error) {
 		if err != nil {
 			return nil, err
 		}
-		l.reportingCore = reportingCore
+		l.reportingLogger = zapL.WithOptions(zap.WrapCore(func(zapcore.Core) zapcore.Core {
+			return reportingCore
+		}))
 
 		l.closers = append(l.closers, reportCloser, monitorCloser)
 	}
 
 	zapL = zapL.Named(c.LoggerName)
-	l.internalLogger = zapL
+	l.monitorLogger = zapL
 
 	return &l, nil
 }
@@ -105,8 +103,8 @@ func NewLogger(config *Config) (*Logger, error) {
 // NewNopLogger returns a new logger that wont log outputs, wont error, and wont call any internal hooks
 func NewNopLogger() *Logger {
 	return &Logger{
-		internalLogger: zap.NewNop(),
-		reportingCore:  zap.NewNop().Core(),
+		monitorLogger:   zap.NewNop(),
+		reportingLogger: zap.NewNop(),
 	}
 }
 
@@ -114,15 +112,15 @@ func NewNopLogger() *Logger {
 // Note: Zap should not be considered a stable dependency, another logger
 // may be substituted at any time
 func (l *Logger) GetInternalLogger() *zap.Logger {
-	return l.internalLogger
+	return l.monitorLogger
 }
 
 // Sync calls the underlying logger's Sync method, flushing any buffered log
 // entries. Applications should take care to call Sync before exiting.
 func (l *Logger) Sync() error {
 	var err error
-	err = multierr.Append(err, l.reportingCore.Sync())
-	return multierr.Append(err, l.internalLogger.Sync())
+	err = multierr.Append(err, l.reportingLogger.Sync())
+	return multierr.Append(err, l.monitorLogger.Sync())
 }
 
 // Close cleanly shuts down and closes any underlying data streams
@@ -175,44 +173,42 @@ func (l *Logger) With(opts *FieldOpts, fields ...Field) *Logger {
 // the standard fields and any fields accumulated on the logger.
 func (l *Logger) Debug(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
-	l.internalLogger.Debug(message, f...)
+	l.monitorLogger.Debug(message, f...)
 }
 
 // Report logs the message at info level output to the BI pipeline. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
 func (l *Logger) Report(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
-	if ce := l.checkReport(message); ce != nil {
-		ce.Write(f...)
-	}
+	l.reportingLogger.Info(message, f...)
 }
 
 // Info logs the message at info level output. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
 func (l *Logger) Info(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
-	l.internalLogger.Info(message, f...)
+	l.monitorLogger.Info(message, f...)
 }
 
 // Warn logs the message at warn level output. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
 func (l *Logger) Warn(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
-	l.internalLogger.Warn(message, f...)
+	l.monitorLogger.Warn(message, f...)
 }
 
 // Error logs the message at error level output. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
 func (l *Logger) Error(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
-	l.internalLogger.Error(message, f...)
+	l.monitorLogger.Error(message, f...)
 }
 
 // Panic logs the message at panic level output, then panics. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
 func (l *Logger) Panic(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
-	l.internalLogger.Panic(message, f...)
+	l.monitorLogger.Panic(message, f...)
 }
 
 // DPanic logs a message at DPanicLevel. The message includes any fields
@@ -223,7 +219,7 @@ func (l *Logger) Panic(message string, additionalFields ...Field) {
 // recoverable, but shouldn't ever happen.
 func (l *Logger) DPanic(message string, additionalFields ...Field) {
 	f := l.getZapFields(additionalFields...)
-	l.internalLogger.DPanic(message, f...)
+	l.monitorLogger.DPanic(message, f...)
 }
 
 // Fatal logs the message at fatal level output, then calls os.Exit. This includes the additional fields provided,
@@ -233,7 +229,7 @@ func (l *Logger) Fatal(message string, additionalFields ...Field) {
 	// and testable internal library of our own. Zap has done this, but it is internal
 	// so we cant use it
 	f := l.getZapFields(additionalFields...)
-	if ce := l.internalLogger.Check(zapcore.FatalLevel, message); ce != nil {
+	if ce := l.monitorLogger.Check(zapcore.FatalLevel, message); ce != nil {
 		ce.Should(ce.Entry, zapcore.WriteThenNoop)
 		ce.Write(f...)
 	}
@@ -328,23 +324,4 @@ func (l *Logger) writeFields(f ...Field) {
 		l.fields = []Field{}
 	}
 	l.fields = f
-}
-
-// generate a checked entry for a reportable log message. CE
-// will always write to the BI pipe. Because we know the level
-// will always be info when this is called, we can safely skip
-// error set up and exhaustive checking that is done
-// in the standard logger method
-func (l *Logger) checkReport(msg string) *zapcore.CheckedEntry {
-	if !l.reportingCore.Enabled(zapcore.InfoLevel) {
-		return nil
-	}
-	ent := zapcore.Entry{
-		LoggerName: l.loggerName,
-		Time:       time.Now(),
-		// TODO actually log at report level here once zap has a better API for custom log levels
-		Level:   zapcore.InfoLevel,
-		Message: msg,
-	}
-	return l.reportingCore.Check(ent, nil)
 }

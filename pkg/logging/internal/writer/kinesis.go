@@ -25,7 +25,11 @@ func NewKinesisWriter(streamName string) (io.Writer, error) {
 
 	h := firehose.New(ses)
 
-	_, err = h.DescribeDeliveryStream(&firehose.DescribeDeliveryStreamInput{DeliveryStreamName: aws.String(streamName)})
+	_, err = h.DescribeDeliveryStream(
+		&firehose.DescribeDeliveryStreamInput{
+			DeliveryStreamName: aws.String(streamName),
+		},
+	)
 
 	if err != nil {
 		return nil, err

@@ -41,6 +41,8 @@ func Buffer(writer zapcore.WriteSyncer, bufferSize int, flushInterval time.Durat
 		cancel:       cancel,
 	}
 
+	ticker := time.NewTicker(flushInterval)
+
 	// bufio is not goroutine safe, so add lock writer here
 	locked := zapcore.Lock(bw)
 
@@ -48,7 +50,7 @@ func Buffer(writer zapcore.WriteSyncer, bufferSize int, flushInterval time.Durat
 	// we do not need exit this goroutine explicitly
 	go func() {
 		select {
-		case <-time.NewTicker(flushInterval).C:
+		case <-ticker.C:
 			// the background goroutine just keep syncing
 			// until the close func is called.
 			_ = locked.Sync()
@@ -84,5 +86,5 @@ func (s *bufferWriterSyncer) Sync() error {
 // regular flushes
 func (s *bufferWriterSyncer) Close() error {
 	s.cancel()
-	return s.bufferWriter.Flush()
+	return s.Sync()
 }

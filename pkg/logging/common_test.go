@@ -22,7 +22,8 @@ func withLogger(c *Config, f func(*Logger, *observer.ObservedLogs)) {
 	if err != nil {
 		panic(err)
 	}
-	log.internalLogger = zapL
+	log.monitorLogger = zapL
+	log.reportingLogger = zapL
 	f(log, logs)
 }
 
