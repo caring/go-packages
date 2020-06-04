@@ -147,8 +147,6 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 // the zap-pretty pretty printing util and easy development
 func newZapDevelopmentConfig() zap.Config {
 	c := zap.NewDevelopmentConfig()
-	c.OutputPaths = []string{"stdout"}
-	c.ErrorOutputPaths = []string{"stdout"}
 	// This displays log messages in a format compatable with the zap-pretty print library
 	c.EncoderConfig = zapcore.EncoderConfig{
 		TimeKey:        "ts",
