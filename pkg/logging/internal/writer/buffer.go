@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"log"
 	"time"
 
 	"go.uber.org/zap/zapcore"
@@ -49,13 +50,18 @@ func Buffer(writer zapcore.WriteSyncer, bufferSize int, flushInterval time.Durat
 	// flush buffer every interval
 	// we do not need exit this goroutine explicitly
 	go func() {
-		select {
-		case <-ticker.C:
-			// the background goroutine just keep syncing
-			// until the close func is called.
-			_ = locked.Sync()
-		case <-ctx.Done():
-			return
+		for {
+			select {
+			case <-ticker.C:
+				// the background goroutine just keep syncing
+				// until the close func is called.
+				err := locked.Sync()
+				if err != nil {
+					log.Print(err.Error())
+				}
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 	return locked, bw
