@@ -61,6 +61,9 @@ func NewLogger(config *Config) (*Logger, error) {
 	if err != nil {
 		return nil, err
 	}
+	zapL = zapL.Named(c.LoggerName)
+	l.monitorLogger = zapL
+	l.reportingLogger = zapL
 
 	if !*c.DisableKinesis {
 		monitoringCore, monitorCloser, err := buildMonitoringCore(
@@ -93,9 +96,6 @@ func NewLogger(config *Config) (*Logger, error) {
 
 		l.closers = append(l.closers, reportCloser, monitorCloser)
 	}
-
-	zapL = zapL.Named(c.LoggerName)
-	l.monitorLogger = zapL
 
 	return &l, nil
 }
