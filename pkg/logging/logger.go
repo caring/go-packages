@@ -83,20 +83,26 @@ func NewLogger(config *Config) (*Logger, error) {
 			return monitoringCore
 		}))
 
-		reportingCore, reportCloser, err := buildReportingCore(
-			c.KinesisStreamReporting,
-			zapConfig.EncoderConfig,
-			c.BufferSize,
-			c.FlushInterval,
-		)
-		if err != nil {
-			return nil, err
-		}
-		l.reportingLogger = zapL.WithOptions(zap.WrapCore(func(zapcore.Core) zapcore.Core {
-			return reportingCore
-		}))
+		// Only build a Kinesis stream for reporting if the name of the stream was supplied
+		if len(c.KinesisStreamReporting) > 0 {
+			reportingCore, reportCloser, err := buildReportingCore(
+				c.KinesisStreamReporting,
+				zapConfig.EncoderConfig,
+				c.BufferSize,
+				c.FlushInterval,
+			)
+			if err != nil {
+				return nil, err
+			}
 
-		l.closers = append(l.closers, reportCloser, monitorCloser)
+			l.reportingLogger = zapL.WithOptions(zap.WrapCore(func(zapcore.Core) zapcore.Core {
+				return reportingCore
+			}))
+
+			l.closers = append(l.closers, reportCloser, monitorCloser)
+		}
+
+		l.closers = append(l.closers, monitorCloser)
 	}
 
 	return &l, nil
