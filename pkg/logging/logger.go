@@ -83,6 +83,8 @@ func NewLogger(config *Config) (*Logger, error) {
 			return monitoringCore
 		}))
 
+		l.closers = append(l.closers, monitorCloser)
+
 		// Only build a Kinesis stream for reporting if the name of the stream was supplied
 		if len(c.KinesisStreamReporting) > 0 {
 			reportingCore, reportCloser, err := buildReportingCore(
@@ -99,10 +101,8 @@ func NewLogger(config *Config) (*Logger, error) {
 				return reportingCore
 			}))
 
-			l.closers = append(l.closers, reportCloser, monitorCloser)
+			l.closers = append(l.closers, reportCloser)
 		}
-
-		l.closers = append(l.closers, monitorCloser)
 	}
 
 	return &l, nil
