@@ -53,8 +53,8 @@ func NewLogger(config *Config) (*Logger, error) {
 	}
 
 	zapConfig.Encoding = "json"
-	zapConfig.OutputPaths = []string{"stdout", "stderr"}
-	zapConfig.ErrorOutputPaths = []string{"stdout", "stderr"}
+	zapConfig.OutputPaths = []string{"stdout"}
+	zapConfig.ErrorOutputPaths = []string{"stderr"}
 	zapConfig.Level.SetLevel(zapcore.Level(c.LogLevel))
 	// caller skip makes the caller appear as the line of code where this package is called,
 	// instead of where zap is called in this package
