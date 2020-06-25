@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 )
 import (
+	spb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+import "github.com/golang/protobuf/proto"
 
 // converts a HTTP error code to a gRPC code
 func GrpcFromHttp(httpCode int) codes.Code {
@@ -201,6 +203,10 @@ type withGrpcStatus struct {
 	cause      error
 	grpcCode codes.Code
 	grpcStatus *status.Status
+}
+
+func (w *withGrpcStatus) Status() *status.Status {
+	return w.grpcStatus
 }
 
 func (w *withGrpcStatus) Error() string {
