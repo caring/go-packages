@@ -203,7 +203,7 @@ type withGrpcStatus struct {
 	grpcStatus *status.Status
 }
 
-func (w *withGrpcStatus) Status() *status.Status {
+func (w *withGrpcStatus) GRPCStatus() *status.Status {
 	return w.grpcStatus
 }
 
