@@ -203,6 +203,10 @@ type withGrpcStatus struct {
 	grpcStatus *status.Status
 }
 
+func (w *withGrpcStatus) GRPCStatus() *status.Status {
+	return w.grpcStatus
+}
+
 func (w *withGrpcStatus) Error() string {
 	return fmt.Sprintf("rpc error: code = %s desc = %s", w.grpcCode, w.grpcStatus.Message())
 }
