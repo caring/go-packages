@@ -47,25 +47,12 @@ func NewSNS(config *Config) (*sns.SNS, string, error) {
 		return nil, "", err
 	}
 
-	//Create EmailTopic if not exist
-	existEmailTopic := false
 	topicArn := ""
 	for _, t := range result.Topics {
 		if strings.Contains(*t.TopicArn, EmailTopic) {
-			existEmailTopic = true
 			topicArn = *t.TopicArn
 			break
 		}
-	}
-	if !existEmailTopic {
-		result, err := client.CreateTopic(&sns.CreateTopicInput{
-			Name: aws.String(EmailTopic),
-		})
-		if err != nil {
-			l.Fatal("Failed to create SNS EmailTopic:" + err.Error())
-			return nil, "", err
-		}
-		topicArn = *result.TopicArn
 	}
 	return client, topicArn, nil
 }
