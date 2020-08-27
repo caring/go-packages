@@ -42,28 +42,36 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 	}
 	final.Logger = c.Logger
 
-	if c.AWSRegion != "" {
-		final.AWSRegion = c.AWSRegion
-	} else if s := os.Getenv("AWS_REGION"); s != "" {
+	if s := os.Getenv("AWS_REGION"); s != "" {
 		final.AWSRegion = s
+	} else if c.AWSRegion != "" {
+		final.AWSRegion = c.AWSRegion
+	} else {
+		return nil, errors.New("Missing environment variable AWS_REGION")
 	}
 
-	if c.AccessKeyID != "" {
-		final.AccessKeyID = c.AccessKeyID
-	} else if s := os.Getenv("ACCESS_KEY_ID"); s != "" {
+	if s := os.Getenv("ACCESS_KEY_ID"); s != "" {
 		final.AccessKeyID = s
+	} else if c.AccessKeyID != "" {
+		final.AccessKeyID = c.AccessKeyID
+	} else {
+		return nil, errors.New("Missing environment variable ACCESS_KEY_ID")
 	}
 
-	if c.SecretAccessKey != "" {
-		final.SecretAccessKey = c.SecretAccessKey
-	} else if s := os.Getenv("SECRET_ACCESS_KEY"); s != "" {
+	if s := os.Getenv("SECRET_ACCESS_KEY"); s != "" {
 		final.SecretAccessKey = s
+	} else if c.SecretAccessKey != "" {
+		final.SecretAccessKey = c.SecretAccessKey
+	} else {
+		return nil, errors.New("Missing environment variable SECRET_ACCESS_KEY")
 	}
 
-	if c.TopicArn != "" {
-		final.TopicArn = c.TopicArn
-	} else if s := os.Getenv("EMAIL_TOPIC_ARN"); s != "" {
+	if s := os.Getenv("EMAIL_TOPIC_ARN"); s != "" {
 		final.TopicArn = s
+	} else if c.TopicArn != "" {
+		final.TopicArn = c.TopicArn
+	} else {
+		return nil, errors.New("Missing environment variable EMAIL_TOPIC_ARN")
 	}
 
 	return final, nil

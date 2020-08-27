@@ -13,7 +13,6 @@ func NewSQS(config *Config) (*sqs.SQS, error) {
 	if err != nil {
 		return nil, err
 	}
-	l := c.Logger
 
 	credVal := credentials.Value{
 		AccessKeyID:     c.AccessKeyID,
@@ -31,7 +30,6 @@ func NewSQS(config *Config) (*sqs.SQS, error) {
 
 	client := sqs.New(sess)
 	if client == nil {
-		l.Fatal("Failed to establish connection to SQS")
 		return nil, err
 	}
 	return client, nil

@@ -14,8 +14,6 @@ func NewSNS(config *Config) (*sns.SNS, string, error) {
 		return nil, "", err
 	}
 
-	l := c.Logger
-
 	credVal := credentials.Value{
 		AccessKeyID:     c.AccessKeyID,
 		SecretAccessKey: c.SecretAccessKey,
@@ -32,7 +30,6 @@ func NewSNS(config *Config) (*sns.SNS, string, error) {
 
 	client := sns.New(sess)
 	if client == nil {
-		l.Fatal("Failed to establish connection to SNS")
 		return nil, "", err
 	}
 	return client, c.TopicArn, nil

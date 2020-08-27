@@ -10,14 +10,14 @@ const (
 	Subject = "Subject"
 )
 
-func Publish(client *sns.SNS, logger *logging.Logger, subject, topicArn, json string) error {
+func Publish(client *sns.SNS, logger *logging.Logger, subject, topicArn, json string) (string, error) {
 	var err error
 	if client == nil || len(topicArn) == 0 {
 		client, topicArn, err = NewSNS(&Config{
 			Logger: logger,
 		})
 		if err != nil {
-			logger.Fatal("Failed to establish connection to SNS:" + err.Error())
+			return "", err
 		}
 	}
 
@@ -37,9 +37,8 @@ func Publish(client *sns.SNS, logger *logging.Logger, subject, topicArn, json st
 
 	result, err := client.Publish(&input)
 	if err != nil {
-		logger.Fatal("Failed to publish message to SNS:" + err.Error())
+		return "", err
 	}
-	logger.Debug("MessageId: " + *result.MessageId)
 
-	return err
+	return *result.MessageId, err
 }
