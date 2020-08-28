@@ -23,5 +23,5 @@ func init() {
 }
 
 func ErrorAsException(err error) {
-	
+
 }

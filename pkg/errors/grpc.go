@@ -1,10 +1,10 @@
 package errors
 
 import (
-	"io"
-	"fmt"
-	"net/http"
 	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 )
 import (
 	"google.golang.org/genproto/googleapis/rpc/errdetails"
@@ -158,28 +158,28 @@ func FromGrpcError(origErr error) error {
 		return nil
 	}
 	// sanity check this is actually a GRPCError
-	st, valid := status.FromError(origErr); 
+	st, valid := status.FromError(origErr)
 	if valid {
 		if st.Code() == codes.OK {
-				return nil
-			}
-			for _, detail := range st.Details() {
-				switch t := detail.(type) {
-				case *errdetails.DebugInfo:
-					if err := json.Unmarshal([]byte(t.Detail), origErr); err == nil {
-						return nil
-					}
+			return nil
+		}
+		for _, detail := range st.Details() {
+			switch t := detail.(type) {
+			case *errdetails.DebugInfo:
+				if err := json.Unmarshal([]byte(t.Detail), origErr); err == nil {
+					return nil
 				}
 			}
-			err := &withGrpcStatus{
-				cause:      origErr,
-				grpcCode: st.Code(),
-				grpcStatus: st,
-			}
-			return &withStack{
-				err,
-				callers(),
-			}
+		}
+		err := &withGrpcStatus{
+			cause:      origErr,
+			grpcCode:   st.Code(),
+			grpcStatus: st,
+		}
+		return &withStack{
+			err,
+			callers(),
+		}
 	}
 	return nil
 }
@@ -192,14 +192,14 @@ func WithGrpcStatus(err error, code codes.Code) error {
 	}
 	return &withGrpcStatus{
 		cause:      err,
-		grpcCode: code,
+		grpcCode:   code,
 		grpcStatus: status.New(code, err.Error()),
 	}
 }
 
 type withGrpcStatus struct {
 	cause      error
-	grpcCode codes.Code
+	grpcCode   codes.Code
 	grpcStatus *status.Status
 }
 
