@@ -14,8 +14,6 @@ type Config struct {
 	AccessKeyID string
 	// SecretAccessKey
 	SecretAccessKey string
-	// TopicArn for EmailTopic
-	TopicArn string
 	// The instance of our own logger to use for logging traces
 	Logger *logging.Logger
 }
@@ -25,7 +23,6 @@ func newDefaultConfig() *Config {
 		AWSRegion:       "",
 		AccessKeyID:     "",
 		SecretAccessKey: "",
-		TopicArn:        "",
 		Logger:          nil,
 	}
 }
@@ -64,14 +61,6 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		final.SecretAccessKey = c.SecretAccessKey
 	} else {
 		return nil, errors.New("Missing environment variable SECRET_ACCESS_KEY")
-	}
-
-	if s := os.Getenv("EMAIL_TOPIC_ARN"); s != "" {
-		final.TopicArn = s
-	} else if c.TopicArn != "" {
-		final.TopicArn = c.TopicArn
-	} else {
-		return nil, errors.New("Missing environment variable EMAIL_TOPIC_ARN")
 	}
 
 	return final, nil

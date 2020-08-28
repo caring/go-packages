@@ -8,10 +8,10 @@ import (
 )
 
 // NewSNS initializes a new AWS SNS client
-func NewSNS(config *Config) (*sns.SNS, string, error) {
+func NewSNS(config *Config) (*sns.SNS, error) {
 	c, err := mergeAndPopulateConfig(config)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	credVal := credentials.Value{
@@ -30,7 +30,7 @@ func NewSNS(config *Config) (*sns.SNS, string, error) {
 
 	client := sns.New(sess)
 	if client == nil {
-		return nil, "", err
+		return nil, err
 	}
-	return client, c.TopicArn, nil
+	return client, nil
 }
