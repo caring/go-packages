@@ -47,20 +47,20 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		return nil, errors.New("Missing environment variable AWS_REGION")
 	}
 
-	if s := os.Getenv("ACCESS_KEY_ID"); s != "" {
+	if s := os.Getenv("AWS_ACCESS_KEY_ID"); s != "" {
 		final.AccessKeyID = s
 	} else if c.AccessKeyID != "" {
 		final.AccessKeyID = c.AccessKeyID
 	} else {
-		return nil, errors.New("Missing environment variable ACCESS_KEY_ID")
+		return nil, errors.New("Missing environment variable AWS_ACCESS_KEY_ID")
 	}
 
-	if s := os.Getenv("SECRET_ACCESS_KEY"); s != "" {
+	if s := os.Getenv("AWS_SECRET_ACCESS_KEY"); s != "" {
 		final.SecretAccessKey = s
 	} else if c.SecretAccessKey != "" {
 		final.SecretAccessKey = c.SecretAccessKey
 	} else {
-		return nil, errors.New("Missing environment variable SECRET_ACCESS_KEY")
+		return nil, errors.New("Missing environment variable AWS_SECRET_ACCESS_KEY")
 	}
 
 	return final, nil
