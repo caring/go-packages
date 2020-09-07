@@ -22,7 +22,6 @@ func Publish(client *sns.SNS, logger *logging.Logger, subject, topicArn, json st
 	}
 
 	messageAttributeValue := sns.MessageAttributeValue{
-		BinaryValue: nil,
 		DataType:    aws.String("String"),
 		StringValue: aws.String(subject),
 	}
