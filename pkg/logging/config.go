@@ -143,10 +143,10 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		final.FlushInterval = time.Duration(i) * time.Second
 	}
 
-	if c.DisableKinesis == &falseVar && c.Env != "" {
+	if c.Env != "" {
 		final.Env = c.Env
-	} else if c.DisableKinesis == &trueVar {
-		final.Env = os.Getenv("ENV")
+	} else if s := os.Getenv("ENV"); s != "" {
+		final.Env = s
 	}
 
 	return final, nil
