@@ -30,7 +30,7 @@ func withLogger(c *Config, f func(*Logger, *observer.ObservedLogs)) {
 // A testing util that creates an array of zap fields that would be the expected
 // log output for a given config and any additional fields provided
 func commonFields(c *Config, o FieldOpts, additional ...zap.Field) []zap.Field {
-	fields := make([]zap.Field, 6)
+	fields := make([]zap.Field, 7)
 
 	fields[0] = String("service", c.ServiceName).field
 	fields[1] = String("endpoint", o.Endpoint).field
@@ -38,6 +38,7 @@ func commonFields(c *Config, o FieldOpts, additional ...zap.Field) []zap.Field {
 	fields[3] = String("correlationID", o.CorrelationID).field
 	fields[4] = String("userID", o.UserID).field
 	fields[5] = String("clientID", o.ClientID).field
+	fields[6] = String("env", c.Env).field
 
 	return append(fields, additional...)
 }

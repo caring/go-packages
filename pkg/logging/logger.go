@@ -256,11 +256,11 @@ func (l *Logger) getZapFields(fields ...Field) []zap.Field {
 
 	zapped[0] = String("service", l.serviceName).field
 	zapped[1] = String("endpoint", l.endpoint).field
-	zapped[2] = String("env", l.env).field
-	zapped[3] = String("traceabilityID", l.traceabilityID).field
-	zapped[4] = String("correlationID", l.correlationID).field
-	zapped[5] = String("userID", l.userID).field
-	zapped[6] = String("clientID", l.clientID).field
+	zapped[2] = String("traceabilityID", l.traceabilityID).field
+	zapped[3] = String("correlationID", l.correlationID).field
+	zapped[4] = String("userID", l.userID).field
+	zapped[5] = String("clientID", l.clientID).field
+	zapped[6] = String("env", l.env).field
 
 	i := internalFieldcount
 	for _, f := range l.fields {
