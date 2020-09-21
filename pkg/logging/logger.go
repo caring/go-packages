@@ -167,10 +167,10 @@ type FieldOpts struct {
 // with any non 0 values passed in, or if the field reset is set to true then the field will
 // be set to a zero value. If nil options are passed in then the logger is simply cloned without change.
 func (l *Logger) NewChild(opts *FieldOpts, fields ...Field) *Logger {
-	new := *l
-	new.with(opts, fields...)
+	newChild := *l
+	newChild.with(opts, fields...)
 
-	return &new
+	return &newChild
 }
 
 // With sets the internal fields with the provided options.
