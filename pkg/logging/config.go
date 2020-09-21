@@ -41,6 +41,8 @@ type Config struct {
 	FlushInterval time.Duration
 	// If kinesis is enabled this sets the byte size of the buffer for both kinesis cores.
 	BufferSize int64
+	// This value is used to help filter logs by environment. Expected values are caring-prod, caring-stg, & caring-dev
+	Env string
 }
 
 func newDefaultConfig() *Config {
@@ -54,6 +56,7 @@ func newDefaultConfig() *Config {
 		DisableKinesis:          &trueVar,
 		FlushInterval:           10 * time.Second,
 		BufferSize:              writer.DefaultBufferSize,
+		Env:                     "",
 	}
 }
 
@@ -140,6 +143,12 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		final.FlushInterval = time.Duration(i) * time.Second
 	}
 
+	if c.DisableKinesis == &falseVar && c.Env != "" {
+		final.Env = c.Env
+	} else if c.DisableKinesis == &trueVar {
+		final.Env = os.Getenv("ENV")
+	}
+
 	return final, nil
 }
 
@@ -147,7 +156,7 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 // the zap-pretty pretty printing util and easy development
 func newZapDevelopmentConfig() zap.Config {
 	c := zap.NewDevelopmentConfig()
-	// This displays log messages in a format compatable with the zap-pretty print library
+	// This displays log messages in a format compatible with the zap-pretty print library
 	c.EncoderConfig = zapcore.EncoderConfig{
 		TimeKey:        "ts",
 		LevelKey:       "level",

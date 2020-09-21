@@ -21,6 +21,7 @@ type Logger struct {
 	clientID       string
 	userID         string
 	endpoint       string
+	env            string
 	fields         []Field
 
 	loggerName      string
@@ -42,6 +43,7 @@ func NewLogger(config *Config) (*Logger, error) {
 
 	l := Logger{
 		serviceName: c.ServiceName,
+		env:         c.Env,
 		fields:      []Field{},
 		loggerName:  c.LoggerName,
 	}
