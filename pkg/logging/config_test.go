@@ -21,6 +21,7 @@ func Test_newDefaultConfig(t *testing.T) {
 	assert.Equal(t, true, *c.DisableKinesis, "Expected kinesis to be disabled")
 	assert.Equal(t, 10*time.Second, c.FlushInterval, "Expected flush interval to be 10 seconds")
 	assert.Equal(t, int64(256*1024), c.BufferSize, "Expected buffer size to be 262_144 bytes")
+	assert.Equal(t, "", c.Env, "Expected an empty environment name")
 }
 
 func Test_mergeAndPopulateConfig(t *testing.T) {
@@ -38,6 +39,7 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 		assert.Equal(t, true, *result.DisableKinesis, "Expected kinesis to be disabled")
 		assert.Equal(t, 10*time.Second, result.FlushInterval, "Expected flush interval to be 10 seconds")
 		assert.Equal(t, int64(256*1024), result.BufferSize, "Expected buffer size to be 262_144 bytes")
+		assert.Equal(t, "", c.Env, "Expected an empty environment name")
 	})
 
 	os.Setenv("SERVICE_NAME", "fooservice")
@@ -49,6 +51,7 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 	os.Setenv("LOG_DISABLE_KINESIS", "FALSE")
 	os.Setenv("LOG_FLUSH_INTERVAL", "7")
 	os.Setenv("LOG_BUFFER_SIZE", "1024")
+	os.Setenv("ENV", "caring-dev")
 
 	t.Run("Initializes all config from environment correctly when given an empty config object", func(t *testing.T) {
 		c := &Config{}
@@ -64,6 +67,7 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 		assert.Equal(t, false, *result.DisableKinesis, "Expected kinesis to be enabled")
 		assert.Equal(t, 7*time.Second, result.FlushInterval, "Expected flush interval to be 7 seconds")
 		assert.Equal(t, int64(1024), result.BufferSize, "Expected buffer size to be 1024 bytes")
+		assert.Equal(t, "caring-dev", result.Env,"Expected environment to be caring-dev")
 	})
 
 	t.Run("Initializes all config from environment correctly when given a populated config object", func(t *testing.T) {
@@ -90,6 +94,7 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 		assert.Equal(t, true, *result.DisableKinesis, "Expected kinesis to be disabled")
 		assert.Equal(t, 13*time.Second, result.FlushInterval, "Expected flush interval to be 13 seconds")
 		assert.Equal(t, int64(1048576), result.BufferSize, "Expected buffer size to be 1_048_576 bytes")
+		assert.Equal(t, "caring-dev", result.Env, "Expected environment to be caring-dev")
 	})
 
 	os.Setenv("SERVICE_NAME", "")
@@ -101,4 +106,5 @@ func Test_mergeAndPopulateConfig(t *testing.T) {
 	os.Setenv("LOG_DISABLE_KINESIS", "")
 	os.Setenv("LOG_FLUSH_INTERVAL", "")
 	os.Setenv("LOG_BUFFER_SIZE", "")
+	os.Setenv("ENV", "")
 }

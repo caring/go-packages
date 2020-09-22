@@ -13,8 +13,10 @@ import (
 
 var config = &Config{
 	LogLevel: DebugLevel,
+	Env: "caring-dev",
 }
 
+// TODO: Decouple these tests and make them compare specific fields rather than entire structs
 func Test_LoggerNewChild(t *testing.T) {
 	withLogger(config, func(logger *Logger, logs *observer.ObservedLogs) {
 		logger.With(nil, Int64("foo", 42))
@@ -101,7 +103,7 @@ func Test_LoggerLogPanic(t *testing.T) {
 		assert.Panics(t, func() { logger.Panic("baz") }, "Expected panic")
 
 		output := logs.AllUntimed()
-		assert.Equal(t, 6, len(output[0].Context), "Unexpected context on first log.")
+		assert.Equal(t, 7, len(output[0].Context), "Unexpected context on first log.")
 		assert.Equal(
 			t,
 			zapcore.Entry{Message: "baz", Level: zap.PanicLevel},
@@ -118,7 +120,7 @@ func Test_LoggerLogFatal(t *testing.T) {
 		})
 		assert.True(t, stub.Exited, "Expected Fatal logger call to terminate process.")
 		output := logs.AllUntimed()
-		assert.Equal(t, 6, len(output[0].Context), "Unexpected context on first log.")
+		assert.Equal(t, 7, len(output[0].Context), "Unexpected context on first log.")
 		assert.Equal(
 			t,
 			zapcore.Entry{Message: "baz", Level: zap.FatalLevel},
@@ -144,7 +146,7 @@ func Test_LoggerLeveledMethods(t *testing.T) {
 			tt.method("")
 			output := logs.AllUntimed()
 			assert.Equal(t, i+1, len(output), "Unexpected number of logs.")
-			assert.Equal(t, 6, len(output[i].Context), "Unexpected context on first log.")
+			assert.Equal(t, 7, len(output[i].Context), "Unexpected context on first log.")
 			assert.Equal(
 				t,
 				zapcore.Entry{Level: tt.expectedLevel},
