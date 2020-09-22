@@ -19,6 +19,7 @@ LOG_STREAM_REPORTING | The name of the kinesis stream where business insight lgs
 LOG_DISABLE_KINESIS | Boolean flag to disable out put to kinesis, generally only enabled in Prod | "TRUE"
 LOG_FLUSH_INTERVAL | If kinesis is enabled, this sets the number of seconds between buffer flushes for each underlying kinesis io stream | "10"
 LOG_BUFFER_SIZE | If kinesis is enabled, this sets the byte size of each of the kinesis io buffers | "262144" (256 * 1024)
+ENV | The current environment | "" Empty String
 
 
 ### Usage
