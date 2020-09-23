@@ -1,7 +1,7 @@
 syntax = "proto3";
 package pagination;
 
-option go_package = "pb";
+option go_package = "pagination";
 
 message PageInfo {
 	bool has_next_page = 1;
