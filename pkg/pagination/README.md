@@ -13,7 +13,7 @@ reference the base of this repository, for example:
 ```protobuf
 syntax = "proto3";
 
-import "pagination/pb/pagination.proto";
+import "pagination/pagination.proto";
 
 
 // A message representing listing identities
