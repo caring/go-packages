@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/caring/go-packages/pkg/pagination/pb"
 )
 
 // Pager represents params from list request
@@ -15,8 +14,16 @@ type Pager struct {
 	ForwardPagination bool
 }
 
+// protoPagination is an interface that most proto Pagination objects will satisfy
+type protoPagination interface {
+	GetFirst() int64
+	GetAfter() string
+	GetLast() int64
+	GetBefore() string
+}
+
 // NewPager creates Pager object from proto struct
-func NewPager(proto *pb.PaginationRequest) (*Pager, error) {
+func NewPager(proto protoPagination) (*Pager, error) {
 	after := proto.GetAfter()
 	before := proto.GetBefore()
 
@@ -64,32 +71,23 @@ func NewPager(proto *pb.PaginationRequest) (*Pager, error) {
 }
 
 // PageInfo is a struct representation of data related to pagination
-type PageInfo struct {
-	// Store the decoded cursor within the service, encode/decode it as it passes through the API
-	DecStartCursor string
-	// Store the decoded cursor within the service, encode/decode it as it passes through the API
-	DecEndCursor string
-	HasNextPage  bool
-	HasPrevPage  bool
-}
-
 // ToProto converts a DB layer struct to a protobuf struct
-func (p *PageInfo) ToProto() *pb.PageInfo {
-	return &pb.PageInfo{
-		StartCursor:     EncodeCursor(p.DecStartCursor),
-		EndCursor:       EncodeCursor(p.DecEndCursor),
+func (p *PageInfo) ToProto() *PageInfo {
+	return &PageInfo{
+		StartCursor:     EncodeCursor(p.StartCursor),
+		EndCursor:       EncodeCursor(p.EndCursor),
 		HasNextPage:     p.HasNextPage,
-		HasPreviousPage: p.HasPrevPage,
+		HasPreviousPage: p.HasPreviousPage,
 	}
 }
 
 // NewPageInfo creates PageInfo object
 func NewPageInfo(hasNextPage bool, hasPrevPage bool, firstCursor string, lastCursor string) *PageInfo {
 	return &PageInfo{
-		DecStartCursor: firstCursor,
-		DecEndCursor:   lastCursor,
-		HasNextPage:    hasNextPage,
-		HasPrevPage:    hasPrevPage,
+		StartCursor:     firstCursor,
+		EndCursor:       lastCursor,
+		HasNextPage:     hasNextPage,
+		HasPreviousPage: hasPrevPage,
 	}
 }
 
@@ -97,7 +95,7 @@ func NewPageInfo(hasNextPage bool, hasPrevPage bool, firstCursor string, lastCur
 func DecodeCursor(c string) (string, error) {
 	decoded, err := base64.StdEncoding.DecodeString(c)
 	if err != nil {
-		return "", errors.New("Decode error: " + err.Error() + " for base64 cursor " +fmt.Sprint(c))
+		return "", errors.New("Decode error: " + err.Error() + " for base64 cursor " + fmt.Sprint(c))
 	}
 	return string(decoded), nil
 }
