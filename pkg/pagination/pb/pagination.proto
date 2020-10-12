@@ -1,7 +1,7 @@
 syntax = "proto3";
 package pagination;
 
-option go_package = "github.com/caring/go-packages/pkg/pagination";
+option go_package = "github.com/caring/go-packages/pkg/pagination/pb";
 
 message PageInfo {
 	bool has_next_page = 1;
