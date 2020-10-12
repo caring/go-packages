@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/caring/go-packages/pkg/pagination/pb"
+	"github.com/caring/go-packages/pkg/pagination"
 )
 
 // Pager represents params from list request
@@ -97,7 +97,7 @@ func NewPageInfo(hasNextPage bool, hasPrevPage bool, firstCursor string, lastCur
 func DecodeCursor(c string) (string, error) {
 	decoded, err := base64.StdEncoding.DecodeString(c)
 	if err != nil {
-		return "", errors.New("Decode error: " + err.Error() + " for base64 cursor " +fmt.Sprint(c))
+		return "", errors.New("Decode error: " + err.Error() + " for base64 cursor " + fmt.Sprint(c))
 	}
 	return string(decoded), nil
 }
