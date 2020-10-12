@@ -15,7 +15,7 @@ type Pager struct {
 }
 
 // NewPager creates Pager object from proto struct
-func NewPager(pr PaginationRequest) (*Pager, error) {
+func NewPager(pr *PaginationRequest) (*Pager, error) {
 	after := pr.GetAfter()
 	before := pr.GetBefore()
 
