@@ -62,6 +62,13 @@ func NewPager(pr *PaginationRequest) (*Pager, error) {
 	}, nil
 }
 
+type Page struct {
+	HasNextPage     bool
+	StartCursor     string
+	HasPreviousPage bool
+	EndCursor       string
+}
+
 // Page is a struct representation of data related to pagination
 // ToProto converts a DB layer struct to a protobuf struct
 func (p *Page) ToProto() *PageInfo {
