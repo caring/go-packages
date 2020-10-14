@@ -13,7 +13,7 @@ import (
 
 var config = &Config{
 	LogLevel: DebugLevel,
-	Env: "caring-dev",
+	Env:      "caring-dev",
 }
 
 // TODO: Decouple these tests and make them compare specific fields rather than entire structs

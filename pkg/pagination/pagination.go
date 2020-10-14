@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/caring/go-packages/pkg/pagination"
 )
 
 // Pager represents params from list request
@@ -16,16 +15,16 @@ type Pager struct {
 }
 
 // NewPager creates Pager object from proto struct
-func NewPager(proto *pb.PaginationRequest) (*Pager, error) {
-	after := proto.GetAfter()
-	before := proto.GetBefore()
+func NewPager(pr *PaginationRequest) (*Pager, error) {
+	after := pr.GetAfter()
+	before := pr.GetBefore()
 
 	if len(after) > 0 && len(before) > 0 {
 		return nil, errors.New("invalid pagination request. you may only use one of after or before")
 	}
 
-	first := proto.GetFirst()
-	last := proto.GetLast()
+	first := pr.GetFirst()
+	last := pr.GetLast()
 
 	if first < 0 || last < 0 {
 		return nil, errors.New("invalid pagination request. first and last must be a positive number")
@@ -63,34 +62,29 @@ func NewPager(proto *pb.PaginationRequest) (*Pager, error) {
 	}, nil
 }
 
-// PageInfo is a struct representation of data related to pagination
-type PageInfo struct {
-	// Store the decoded cursor within the service, encode/decode it as it passes through the API
-	DecStartCursor string
-	// Store the decoded cursor within the service, encode/decode it as it passes through the API
-	DecEndCursor string
-	HasNextPage  bool
-	HasPrevPage  bool
-}
-
-// ToProto converts a DB layer struct to a protobuf struct
-func (p *PageInfo) ToProto() *pb.PageInfo {
-	return &pb.PageInfo{
-		StartCursor:     EncodeCursor(p.DecStartCursor),
-		EndCursor:       EncodeCursor(p.DecEndCursor),
-		HasNextPage:     p.HasNextPage,
-		HasPreviousPage: p.HasPrevPage,
-	}
-}
-
 // NewPageInfo creates PageInfo object
 func NewPageInfo(hasNextPage bool, hasPrevPage bool, firstCursor string, lastCursor string) *PageInfo {
 	return &PageInfo{
-		DecStartCursor: firstCursor,
-		DecEndCursor:   lastCursor,
-		HasNextPage:    hasNextPage,
-		HasPrevPage:    hasPrevPage,
+		StartCursor:     firstCursor,
+		EndCursor:       lastCursor,
+		HasNextPage:     hasNextPage,
+		HasPreviousPage: hasPrevPage,
 	}
+}
+
+// in case we want to attach this to another proto and have initialized it here
+func (pi *PageInfo) EncodeForProto() *PageInfo {
+	// don't double encode
+	_, err := DecodeCursor(pi.StartCursor)
+	if err != nil {
+		pi.StartCursor = EncodeCursor(pi.StartCursor)
+	}
+	_, err := DecodeCursor(pi.EndCursor)
+	if err != nil {
+		pi.EndCursor = EncodeCursor(pi.EndCursor)
+	}
+
+	return pi
 }
 
 // DecodeCursor decodes base64 cursor
