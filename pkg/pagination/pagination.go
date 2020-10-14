@@ -62,32 +62,29 @@ func NewPager(pr *PaginationRequest) (*Pager, error) {
 	}, nil
 }
 
-type Page struct {
-	HasNextPage     bool
-	StartCursor     string
-	HasPreviousPage bool
-	EndCursor       string
-}
-
-// Page is a struct representation of data related to pagination
-// ToProto converts a DB layer struct to a protobuf struct
-func (p *Page) ToProto() *PageInfo {
-	return &PageInfo{
-		StartCursor:     EncodeCursor(p.StartCursor),
-		EndCursor:       EncodeCursor(p.EndCursor),
-		HasNextPage:     p.HasNextPage,
-		HasPreviousPage: p.HasPreviousPage,
-	}
-}
-
 // NewPageInfo creates PageInfo object
-func NewPage(hasNextPage bool, hasPrevPage bool, firstCursor string, lastCursor string) *Page {
-	return &Page{
+func NewPageInfo(hasNextPage bool, hasPrevPage bool, firstCursor string, lastCursor string) *PageInfo {
+	return &PageInfo{
 		StartCursor:     firstCursor,
 		EndCursor:       lastCursor,
 		HasNextPage:     hasNextPage,
 		HasPreviousPage: hasPrevPage,
 	}
+}
+
+// in case we want to attach this to another proto and have initialized it here
+func (pi *PageInfo) EncodeForProto() *PageInfo {
+	// don't double encode
+	_, err := DecodeCursor(pi.StartCursor)
+	if err != nil {
+		pi.StartCursor = EncodeCursor(pi.StartCursor)
+	}
+	_, err := DecodeCursor(pi.EndCursor)
+	if err != nil {
+		pi.EndCursor = EncodeCursor(pi.EndCursor)
+	}
+
+	return pi
 }
 
 // DecodeCursor decodes base64 cursor
