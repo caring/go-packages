@@ -63,23 +63,16 @@ func NewPager(proto *pb.PaginationRequest) (*Pager, error) {
 	}, nil
 }
 
-// PageInfo is a struct representation of data related to pagination
-type PageInfo struct {
-	// Store the decoded cursor within the service, encode/decode it as it passes through the API
-	DecStartCursor string
-	// Store the decoded cursor within the service, encode/decode it as it passes through the API
-	DecEndCursor string
-	HasNextPage  bool
-	HasPrevPage  bool
-}
-
-// ToProto converts a DB layer struct to a protobuf struct
-func (p *PageInfo) ToProto() *pb.PageInfo {
-	return &pb.PageInfo{
-		StartCursor:     EncodeCursor(p.DecStartCursor),
-		EndCursor:       EncodeCursor(p.DecEndCursor),
-		HasNextPage:     p.HasNextPage,
-		HasPreviousPage: p.HasPrevPage,
+// in case we want to attach this to another proto and have initialized it here
+func (pi *PageInfo) EncodeForProto() *PageInfo {
+	// don't double encode
+	_, err := DecodeCursor(pi.StartCursor)
+	if err != nil {
+		pi.StartCursor = EncodeCursor(pi.StartCursor)
+	}
+	_, err = DecodeCursor(pi.EndCursor)
+	if err != nil {
+		pi.EndCursor = EncodeCursor(pi.EndCursor)
 	}
 }
 
