@@ -14,7 +14,7 @@ If you want to add to the go packages project, follow the process below.
 
 1. Add new package directory into the pkg/[package you want directory]
     - Do not put packages directly into the pkg folder. Every package needs its own subfolder.
-    - Be more descriptive and less creative with package names.
+    - Be more descriptive and less creative with package names. (see: https://blog.golang.org/package-names)
     - Document all package names, types & functions. Add implementation notes for public content.
 2. Add examples into examples directory. 
     - Follow same package / directory pattern used in pkg directory.
