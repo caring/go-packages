@@ -16,30 +16,23 @@ func NewSQS(config *Config) (*sqs.SQS, error) {
 	}
 
 	var client *sqs.SQS
+	sess, err := session.NewSession()
+	if err != nil {
+		return nil, err
+	}
+	awscfg := &aws.Config{Region: aws.String(c.AWSRegion)}
 	if c.RoleArn != "" {
-		sess := session.Must(session.NewSessionWithOptions(session.Options{
-			Config: aws.Config{
-				Region: aws.String(c.AWSRegion),
-			},
-			SharedConfigState: session.SharedConfigEnable,
-		}))
 		creds := stscreds.NewCredentials(sess, c.RoleArn)
-		client = sqs.New(sess, &aws.Config{Credentials: creds})
+		awscfg.Credentials = creds
 	} else if c.AccessKeyID != "" && c.SecretAccessKey != "" {
 		credVal := credentials.Value{
 			AccessKeyID:     c.AccessKeyID,
 			SecretAccessKey: c.SecretAccessKey,
 		}
 		cred := credentials.NewStaticCredentialsFromCreds(credVal)
-		sess := session.Must(session.NewSessionWithOptions(session.Options{
-			Config: aws.Config{
-				Credentials: cred,
-				Region:      aws.String(c.AWSRegion),
-			},
-			SharedConfigState: session.SharedConfigEnable,
-		}))
-		client = sqs.New(sess)
+		awscfg.Credentials = cred
 	}
+	client = sqs.New(sess, awscfg)
 	if client == nil {
 		return nil, err
 	}
