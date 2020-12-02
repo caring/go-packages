@@ -31,13 +31,6 @@ func NewSQS(config *Config) (*sqs.SQS, error) {
 		}
 		cred := credentials.NewStaticCredentialsFromCreds(credVal)
 		awscfg.Credentials = cred
-		sess = session.Must(session.NewSessionWithOptions(session.Options{
-			Config: aws.Config{
-				Credentials: cred,
-				Region:      aws.String(c.AWSRegion),
-			},
-			SharedConfigState: session.SharedConfigEnable,
-		}))
 	}
 	client = sqs.New(sess, awscfg)
 	if client == nil {
