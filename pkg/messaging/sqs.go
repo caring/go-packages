@@ -1,6 +1,7 @@
 package messaging
 
 import (
+	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
@@ -17,12 +18,10 @@ func NewSQS(config *Config) (*sqs.SQS, error) {
 
 	var client *sqs.SQS
 	if c.RoleArn != "" {
-		sess := session.Must(session.NewSessionWithOptions(session.Options{
-			Config: aws.Config{
-				Region: aws.String(c.AWSRegion),
-			},
-			SharedConfigState: session.SharedConfigEnable,
-		}))
+		sess, err := session.NewSession(&aws.Config{Region: aws.String(c.AWSRegion)})
+		if err != nil {
+			return nil, err
+		}
 		creds := stscreds.NewCredentials(sess, c.RoleArn)
 		client = sqs.New(sess, &aws.Config{Credentials: creds})
 	} else if c.AccessKeyID != "" && c.SecretAccessKey != "" {
@@ -38,6 +37,12 @@ func NewSQS(config *Config) (*sqs.SQS, error) {
 			},
 			SharedConfigState: session.SharedConfigEnable,
 		}))
+		client = sqs.New(sess)
+	} else {
+		sess, err := session.NewSession(&aws.Config{Region: aws.String(c.AWSRegion)})
+		if err != nil {
+			return nil, err
+		}
 		client = sqs.New(sess)
 	}
 	if client == nil {

@@ -17,12 +17,10 @@ func NewSNS(config *Config) (*sns.SNS, error) {
 
 	var client *sns.SNS
 	if c.RoleArn != "" {
-		sess := session.Must(session.NewSessionWithOptions(session.Options{
-			Config: aws.Config{
-				Region: aws.String(c.AWSRegion),
-			},
-			SharedConfigState: session.SharedConfigEnable,
-		}))
+		sess, err := session.NewSession(&aws.Config{Region: aws.String(c.AWSRegion)})
+		if err != nil {
+			return nil, err
+		}
 		creds := stscreds.NewCredentials(sess, c.RoleArn)
 		client = sns.New(sess, &aws.Config{Credentials: creds})
 	} else if c.AccessKeyID != "" && c.SecretAccessKey != "" {
@@ -31,7 +29,6 @@ func NewSNS(config *Config) (*sns.SNS, error) {
 			SecretAccessKey: c.SecretAccessKey,
 		}
 		cred := credentials.NewStaticCredentialsFromCreds(credVal)
-
 		sess := session.Must(session.NewSessionWithOptions(session.Options{
 			Config: aws.Config{
 				Credentials: cred,
@@ -39,6 +36,12 @@ func NewSNS(config *Config) (*sns.SNS, error) {
 			},
 			SharedConfigState: session.SharedConfigEnable,
 		}))
+		client = sns.New(sess)
+	} else {
+		sess, err := session.NewSession(&aws.Config{Region: aws.String(c.AWSRegion)})
+		if err != nil {
+			return nil, err
+		}
 		client = sns.New(sess)
 	}
 	if client == nil {
