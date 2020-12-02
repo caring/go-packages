@@ -2,7 +2,7 @@ package messaging
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
 )
@@ -14,21 +14,14 @@ func NewSNS(config *Config) (*sns.SNS, error) {
 		return nil, err
 	}
 
-	credVal := credentials.Value{
-		AccessKeyID:     c.AccessKeyID,
-		SecretAccessKey: c.SecretAccessKey,
-	}
-	cred := credentials.NewStaticCredentialsFromCreds(credVal)
-
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		Config: aws.Config{
-			Credentials: cred,
-			Region:      aws.String(c.AWSRegion),
+			Region: aws.String(c.AWSRegion),
 		},
 		SharedConfigState: session.SharedConfigEnable,
 	}))
-
-	client := sns.New(sess)
+	creds := stscreds.NewCredentials(sess, c.RoleArn)
+	client := sns.New(sess, &aws.Config{Credentials: creds})
 	if client == nil {
 		return nil, err
 	}

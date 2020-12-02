@@ -14,6 +14,8 @@ type Config struct {
 	AccessKeyID string
 	// SecretAccessKey
 	SecretAccessKey string
+	// RoleArn
+	RoleArn string
 	// The instance of our own logger to use for logging traces
 	Logger *logging.Logger
 }
@@ -23,6 +25,7 @@ func newDefaultConfig() *Config {
 		AWSRegion:       "",
 		AccessKeyID:     "",
 		SecretAccessKey: "",
+		RoleArn:         "",
 		Logger:          nil,
 	}
 }
@@ -47,20 +50,26 @@ func mergeAndPopulateConfig(c *Config) (*Config, error) {
 		return nil, errors.New("Missing environment variable AWS_REGION")
 	}
 
-	if s := os.Getenv("AWS_ACCESS_KEY_ID"); s != "" {
-		final.AccessKeyID = s
-	} else if c.AccessKeyID != "" {
-		final.AccessKeyID = c.AccessKeyID
+	if s := os.Getenv("AWS_ROLE_ARN"); s != "" {
+		final.RoleArn = s
+	} else if c.RoleArn != "" {
+		final.RoleArn = c.RoleArn
 	} else {
-		return nil, errors.New("Missing environment variable AWS_ACCESS_KEY_ID")
-	}
+		if s := os.Getenv("AWS_ACCESS_KEY_ID"); s != "" {
+			final.AccessKeyID = s
+		} else if c.AccessKeyID != "" {
+			final.AccessKeyID = c.AccessKeyID
+		} else {
+			return nil, errors.New("Missing environment variable AWS_ACCESS_KEY_ID or AWS_ROLE_ARN")
+		}
 
-	if s := os.Getenv("AWS_SECRET_ACCESS_KEY"); s != "" {
-		final.SecretAccessKey = s
-	} else if c.SecretAccessKey != "" {
-		final.SecretAccessKey = c.SecretAccessKey
-	} else {
-		return nil, errors.New("Missing environment variable AWS_SECRET_ACCESS_KEY")
+		if s := os.Getenv("AWS_SECRET_ACCESS_KEY"); s != "" {
+			final.SecretAccessKey = s
+		} else if c.SecretAccessKey != "" {
+			final.SecretAccessKey = c.SecretAccessKey
+		} else {
+			return nil, errors.New("Missing environment variable AWS_SECRET_ACCESS_KEY or AWS_ROLE_ARN")
+		}
 	}
 
 	return final, nil
