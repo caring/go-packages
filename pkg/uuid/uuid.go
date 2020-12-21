@@ -3,7 +3,6 @@ package uuid
 import (
 	"github.com/caring/go-packages/pkg/errors"
 	goouid "github.com/google/uuid"
-	"reflect"
 )
 
 type UUID struct {
@@ -73,10 +72,7 @@ func ParseBytes(b []byte) (UUID, error) {
 }
 
 func (uuid UUID) IsNil() bool {
-	if reflect.ValueOf(uuid.UUID).IsNil() {
-		return true
-	}
-	return false
+	return uuid.UUID.ID() == 0
 }
 
 func (uuid UUID) String() string {
