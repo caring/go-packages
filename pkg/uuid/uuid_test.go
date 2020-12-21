@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 	"unsafe"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type test struct {
@@ -226,6 +228,17 @@ func TestCoding(t *testing.T) {
 
 var asString = "f47ac10b-58cc-0372-8567-0e02b2c3d479"
 var asBytes = []byte(asString)
+
+func TestIsNil(t *testing.T) {
+	id := UUID{}
+	assert.True(t, id.IsNil())
+
+	id = MustParse("f47ac10b-58cc-0372-8567-0e02b2c3d479")
+	assert.False(t, id.IsNil())
+
+	id = New()
+	assert.False(t, id.IsNil())
+}
 
 func BenchmarkParse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
