@@ -1,6 +1,7 @@
 package uuid
 
 import (
+	"database/sql"
 	"github.com/caring/go-packages/pkg/errors"
 	goouid "github.com/google/uuid"
 )
@@ -76,7 +77,14 @@ func (uuid UUID) IsNil() bool {
 }
 
 func (uuid UUID) String() string {
-	return string(uuid.UUID.String())
+	return uuid.UUID.String()
+}
+
+func (uuid UUID) NullString() sql.NullString {
+	if uuid.IsNil() {
+		return sql.NullString{String: uuid.String(), Valid: false}
+	}
+	return sql.NullString{String: uuid.String(), Valid: true}
 }
 
 func (uuid UUID) URN() string {
