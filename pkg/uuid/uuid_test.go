@@ -240,6 +240,16 @@ func TestIsNil(t *testing.T) {
 	assert.False(t, id.IsNil())
 }
 
+func TestNullString(t *testing.T) {
+	id := UUID{}
+	assert.True(t, id.IsNil())
+	assert.False(t, id.NullString().Valid)
+
+	id = MustParse("f47ac10b-58cc-0372-8567-0e02b2c3d479")
+	assert.False(t, id.IsNil())
+	assert.True(t, id.NullString().Valid)
+}
+
 func BenchmarkParse(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		_, err := Parse(asString)
