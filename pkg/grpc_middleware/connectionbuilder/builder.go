@@ -25,7 +25,7 @@ type ConnectionBuilder interface {
 	WithKeepAliveParams(params keepalive.ClientParameters)
 	SetConnInfo(dns, port string) error
 	GetConnInfo() (dns string, port string, err error)
-	GetConnection() (*grpc.ClientConn, error)
+	GetConnection(withTLS bool) (*grpc.ClientConn, error)
 }
 
 type Builder struct {
