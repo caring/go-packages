@@ -20,7 +20,6 @@ type ConnectionBuilder interface {
 	WithContext(ctx context.Context)
 	GetContext() context.Context
 	WithOptions(opts ...grpc.DialOption)
-	WithInsecure()
 	WithUnaryInterceptors(interceptors []grpc.UnaryClientInterceptor)
 	WithStreamInterceptors(interceptors []grpc.StreamClientInterceptor)
 	WithKeepAliveParams(params keepalive.ClientParameters)
@@ -58,13 +57,6 @@ func (b *Builder) GetContext() context.Context {
 // DialOption configures how we set up the connection.
 func (b *Builder) WithOptions(opts ...grpc.DialOption) {
 	b.options = append(b.options, opts...)
-}
-
-// WithInsecure returns a DialOption which disables transport security for this
-// ClientConn. Note that transport security is required unless WithInsecure is
-// set.
-func (b *Builder) WithInsecure() {
-	b.options = append(b.options, grpc.WithInsecure())
 }
 
 // WithBlock returns a DialOption which makes caller of Dial blocks until the
@@ -128,6 +120,10 @@ func (b *Builder) WithClientTransportCredentials(insecureSkipVerify bool, certPo
 	b.transportCredentials = credentials.NewTLS(&tlsConf)
 }
 
+func (b *Builder) GetClientTransportCredentials() credentials.TransportCredentials {
+	return b.transportCredentials
+}
+
 // SetConnInfo allows passing in the dns and port for the connection, providing
 // flexibility if a consumer wants to set a default and or override
 func (b *Builder) SetConnInfo(dns, port string) error {
@@ -175,6 +171,8 @@ func (b *Builder) GetConnection(withTLS bool) (*grpc.ClientConn, error) {
 
 	if withTLS == true {
 		b.options = append(b.options, grpc.WithTransportCredentials(b.transportCredentials))
+	} else {
+		b.options = append(b.options, grpc.WithInsecure())
 	}
 	cc, err := grpc.DialContext(b.getContext(), addr, b.options...)
 
