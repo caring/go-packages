@@ -6,6 +6,8 @@ import (
 	"crypto/x509"
 	"fmt"
 	"log"
+	"net/url"
+	"strconv"
 
 	"github.com/caring/go-packages/pkg/errors"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -16,12 +18,13 @@ import (
 
 type ConnectionBuilder interface {
 	WithContext(ctx context.Context)
+	GetContext() context.Context
 	WithOptions(opts ...grpc.DialOption)
 	WithInsecure()
 	WithUnaryInterceptors(interceptors []grpc.UnaryClientInterceptor)
 	WithStreamInterceptors(interceptors []grpc.StreamClientInterceptor)
 	WithKeepAliveParams(params keepalive.ClientParameters)
-	SetConnInfo(dns, port string)
+	SetConnInfo(dns, port string) error
 	GetConnInfo() (dns string, port string, err error)
 	GetConnection() (*grpc.ClientConn, error)
 }
@@ -33,6 +36,8 @@ type Builder struct {
 	shutdownHook         func()
 	enabledHealthCheck   bool
 	transportCredentials credentials.TransportCredentials
+	uinterceptors        []grpc.UnaryClientInterceptor
+	sinterceptors        []grpc.StreamClientInterceptor
 	dns                  *string
 	port                 *string
 	err                  error
@@ -42,6 +47,11 @@ type Builder struct {
 // connector will use Background if this is not set
 func (b *Builder) WithContext(ctx context.Context) {
 	b.ctx = ctx
+}
+
+// GetContext returns the builder context
+func (b *Builder) GetContext() context.Context {
+	return b.ctx
 }
 
 // WithOptions allows possing in multiple grpc dial options
@@ -81,7 +91,13 @@ func (b *Builder) WithKeepAliveParams(params keepalive.ClientParameters) {
 // single interceptor out of a chain of many interceptors to override the grpc
 // default behavior of only allowing one.
 func (b *Builder) WithUnaryInterceptors(interceptors []grpc.UnaryClientInterceptor) {
+	b.uinterceptors = interceptors
 	b.options = append(b.options, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(interceptors...)))
+}
+
+// GetUnaryInterceptors returns the UnaryClientInterceptors slice
+func (b *Builder) GetUnaryInterceptors() []grpc.UnaryClientInterceptor {
+	return b.uinterceptors
 }
 
 // WithStreamInterceptors set a list of interceptors to the Grpc client for unary
@@ -89,7 +105,13 @@ func (b *Builder) WithUnaryInterceptors(interceptors []grpc.UnaryClientIntercept
 // single interceptor out of a chain of many interceptors to override the grpc
 // default behavior of only allowing one.
 func (b *Builder) WithStreamInterceptors(interceptors []grpc.StreamClientInterceptor) {
+	b.sinterceptors = interceptors
 	b.options = append(b.options, grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(interceptors...)))
+}
+
+// GetStreamInterceptors returns the StreamClientInterceptors slice
+func (b *Builder) GetStreamInterceptors() []grpc.StreamClientInterceptor {
+	return b.sinterceptors
 }
 
 // WithClientTransportCredentials builds transport credentials for a gRPC client
@@ -108,9 +130,26 @@ func (b *Builder) WithClientTransportCredentials(insecureSkipVerify bool, certPo
 
 // SetConnInfo allows passing in the dns and port for the connection, providing
 // flexibility if a consumer wants to set a default and or override
-func (b *Builder) SetConnInfo(dns, port string) {
+func (b *Builder) SetConnInfo(dns, port string) error {
+
+	u, err := url.Parse(dns)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("invalid dns: %s", dns))
+	}
+	if u.Scheme != "" {
+		// This will cause the connection to fail silently with a cryptic "context.Deadline exceeded" so we validate for it here.
+		return errors.New(fmt.Sprintf("grpc connection dns must not contain a scheme/protocol: %s", dns))
+	}
 	b.dns = &dns
+
+	i, err := strconv.ParseUint(port, 10, 32)
+	if err != nil || i < 0 || i > 65353 {
+		return errors.Wrap(err, fmt.Sprintf("invalid port number: %s", port))
+	}
 	b.port = &port
+
+	return nil
+
 }
 
 // GetConnInfo returns the dns and port that were set, and errors if either
