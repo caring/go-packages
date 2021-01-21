@@ -21,8 +21,12 @@ type ConnectionBuilder interface {
 	GetContext() context.Context
 	WithOptions(opts ...grpc.DialOption)
 	WithUnaryInterceptors(interceptors []grpc.UnaryClientInterceptor)
+	GetUnaryInterceptors() []grpc.UnaryClientInterceptor
 	WithStreamInterceptors(interceptors []grpc.StreamClientInterceptor)
+	GetStreamInterceptors() []grpc.StreamClientInterceptor
 	WithKeepAliveParams(params keepalive.ClientParameters)
+	WithClientTransportCredentials(insecureSkipVerify bool, certPool *x509.CertPool)
+	GetClientTransportCredentials() credentials.TransportCredentials
 	SetConnInfo(dns, port string) error
 	GetConnInfo() (dns string, port string, err error)
 	GetConnection(withTLS bool) (*grpc.ClientConn, error)
