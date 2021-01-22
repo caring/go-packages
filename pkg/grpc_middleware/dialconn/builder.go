@@ -1,4 +1,4 @@
-package connectionbuilder
+package dialconn
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-type ConnectionBuilder interface {
+type Builder interface {
 	WithContext(ctx context.Context)
 	GetContext() context.Context
 	WithOptions(opts ...grpc.DialOption)
@@ -32,7 +32,7 @@ type ConnectionBuilder interface {
 	GetConnection(withTLS bool) (*grpc.ClientConn, error)
 }
 
-type Builder struct {
+type ConnBuilder struct {
 	ctx                  context.Context
 	options              []grpc.DialOption
 	enabledReflection    bool
@@ -48,25 +48,25 @@ type Builder struct {
 
 // WithContext sets the context to be used
 // connector will use Background if this is not set
-func (b *Builder) WithContext(ctx context.Context) {
+func (b *ConnBuilder) WithContext(ctx context.Context) {
 	b.ctx = ctx
 }
 
 // GetContext returns the builder context
-func (b *Builder) GetContext() context.Context {
+func (b *ConnBuilder) GetContext() context.Context {
 	return b.ctx
 }
 
 // WithOptions allows possing in multiple grpc dial options
 // DialOption configures how we set up the connection.
-func (b *Builder) WithOptions(opts ...grpc.DialOption) {
+func (b *ConnBuilder) WithOptions(opts ...grpc.DialOption) {
 	b.options = append(b.options, opts...)
 }
 
 // WithBlock returns a DialOption which makes caller of Dial blocks until the
 // underlying connection is up. Without this, Dial returns immediately and
 // connecting the server happens in background.
-func (b *Builder) WithBlock() {
+func (b *ConnBuilder) WithBlock() {
 	b.options = append(b.options, grpc.WithBlock())
 }
 
@@ -77,7 +77,7 @@ func (b *Builder) WithBlock() {
 // the connection. Make sure these parameters are set in coordination with the
 // keepalive policy on the server, as incompatible settings can result in closing
 // of connection.
-func (b *Builder) WithKeepAliveParams(params keepalive.ClientParameters) {
+func (b *ConnBuilder) WithKeepAliveParams(params keepalive.ClientParameters) {
 	keepAlive := grpc.WithKeepaliveParams(params)
 	b.options = append(b.options, keepAlive)
 }
@@ -86,13 +86,13 @@ func (b *Builder) WithKeepAliveParams(params keepalive.ClientParameters) {
 // connection. We leverage grpc_middleware package ChainUnaryClient to creates a
 // single interceptor out of a chain of many interceptors to override the grpc
 // default behavior of only allowing one.
-func (b *Builder) WithUnaryInterceptors(interceptors []grpc.UnaryClientInterceptor) {
+func (b *ConnBuilder) WithUnaryInterceptors(interceptors []grpc.UnaryClientInterceptor) {
 	b.uinterceptors = interceptors
 	b.options = append(b.options, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(interceptors...)))
 }
 
 // GetUnaryInterceptors returns the UnaryClientInterceptors slice
-func (b *Builder) GetUnaryInterceptors() []grpc.UnaryClientInterceptor {
+func (b *ConnBuilder) GetUnaryInterceptors() []grpc.UnaryClientInterceptor {
 	return b.uinterceptors
 }
 
@@ -100,18 +100,18 @@ func (b *Builder) GetUnaryInterceptors() []grpc.UnaryClientInterceptor {
 // connection. We leverage grpc_middleware package ChainStreamClient to creates a
 // single interceptor out of a chain of many interceptors to override the grpc
 // default behavior of only allowing one.
-func (b *Builder) WithStreamInterceptors(interceptors []grpc.StreamClientInterceptor) {
+func (b *ConnBuilder) WithStreamInterceptors(interceptors []grpc.StreamClientInterceptor) {
 	b.sinterceptors = interceptors
 	b.options = append(b.options, grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(interceptors...)))
 }
 
 // GetStreamInterceptors returns the StreamClientInterceptors slice
-func (b *Builder) GetStreamInterceptors() []grpc.StreamClientInterceptor {
+func (b *ConnBuilder) GetStreamInterceptors() []grpc.StreamClientInterceptor {
 	return b.sinterceptors
 }
 
 // WithClientTransportCredentials builds transport credentials for a gRPC client
-func (b *Builder) WithClientTransportCredentials(insecureSkipVerify bool, certPool *x509.CertPool) {
+func (b *ConnBuilder) WithClientTransportCredentials(insecureSkipVerify bool, certPool *x509.CertPool) {
 	var tlsConf tls.Config
 
 	if insecureSkipVerify {
@@ -124,13 +124,13 @@ func (b *Builder) WithClientTransportCredentials(insecureSkipVerify bool, certPo
 	b.transportCredentials = credentials.NewTLS(&tlsConf)
 }
 
-func (b *Builder) GetClientTransportCredentials() credentials.TransportCredentials {
+func (b *ConnBuilder) GetClientTransportCredentials() credentials.TransportCredentials {
 	return b.transportCredentials
 }
 
 // SetConnInfo allows passing in the dns and port for the connection, providing
 // flexibility if a consumer wants to set a default and or override
-func (b *Builder) SetConnInfo(dns, port string) error {
+func (b *ConnBuilder) SetConnInfo(dns, port string) error {
 
 	u, err := url.Parse(dns)
 	if err != nil {
@@ -154,7 +154,7 @@ func (b *Builder) SetConnInfo(dns, port string) error {
 
 // GetConnInfo returns the dns and port that were set, and errors if either
 // were null, allowing verfication prior to attempting the connection
-func (b *Builder) GetConnInfo() (dns string, port string, err error) {
+func (b *ConnBuilder) GetConnInfo() (dns string, port string, err error) {
 	if b.dns == nil || b.port == nil {
 		return "", "", errors.New("Connection info not fully set")
 	}
@@ -163,7 +163,7 @@ func (b *Builder) GetConnInfo() (dns string, port string, err error) {
 
 // GetConnection returns the client connection to the server
 // withTLS will return a TLS encryped connection
-func (b *Builder) GetConnection(withTLS bool) (*grpc.ClientConn, error) {
+func (b *ConnBuilder) GetConnection(withTLS bool) (*grpc.ClientConn, error) {
 
 	dns, port, err := b.GetConnInfo()
 	if err != nil {
@@ -187,7 +187,7 @@ func (b *Builder) GetConnection(withTLS bool) (*grpc.ClientConn, error) {
 }
 
 // returns the builder context, or uses background if not set
-func (b *Builder) getContext() context.Context {
+func (b *ConnBuilder) getContext() context.Context {
 	ctx := b.ctx
 	if ctx == nil {
 		ctx = context.Background()
