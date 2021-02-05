@@ -4,14 +4,6 @@
 #
 ############################
 
-# Pager contains information regarding
-# the direction and size of pagination
-type Pager {
-  decCursor:         String!
-  limit:             Int!
-  forwardPagination: Boolean!
-}
-
 # PageInfo contains information about the 
 # current page in the pagination
 type PageInfo {

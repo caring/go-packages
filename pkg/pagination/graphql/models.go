@@ -1,9 +1,3 @@
-// Pager represents params from list request
-type Pager struct {
-	DecCursor         string `json:"decCursor"`
-	Limit             int64  `json:"limi"`
-	ForwardPagination bool   `json:"forwardPagination"`
-}
 
 // PageInfo represents params from a page response
 type PageInfo struct {
