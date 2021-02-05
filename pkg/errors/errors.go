@@ -4,13 +4,11 @@ package errors
 
 - DRYing up boilerplate
 
-- Incorporating sentry into a wrapper
-
 -----
 
-Not work to do here of course, but I image an method from our errors package along the lines of handleError(err)
+Not work to do here of course, but I image a method from our errors package along the lines of handleError(err)
 
-Which would internally capture to sentry, log the error, status convert it if it has a GRPC() signature or create a gRPC status default if it doesn't.
+Which would log the error, status convert it if it has a GRPC() signature or create a gRPC status default if it doesn't.
 
 It could then always return gRPC status error so that this big block of code would become
 
