@@ -7,8 +7,9 @@
 # PageInfo contains information about the 
 # current page in the pagination
 type PageInfo {
-    startCursor:     String!
-    endCursor:       String!
-    hasNextPage:     Boolean!
-    hasPreviousPage: Boolean!
+  hasPreviousPage: Boolean!
+  hasNextPage: Boolean!
+  startCursor: String!
+  endCursor: String!
 }
+
