@@ -13,7 +13,7 @@ reference the base of this repository, for example:
 ```protobuf
 syntax = "proto3";
 
-import "pagination/pagination.proto";
+import "github.com/caring/go-packages/pkg/pagination/pb/pagination.proto";
 
 
 // A message representing listing identities
@@ -27,18 +27,16 @@ message ListIdentityRequest {
 }
 ```
 
-If you are using `protoc` (or other similar tooling) to compile these
-protos yourself, you will likely require a local copy. Clone this repository
-to a convenient location and use `--proto_path` to specify the _root_ of
-this repository on your machine to the compiler. Generally the root of all `go`
-projects will be the same, and all `--proto_path` entries are relative to that 
-root. You can run your `protoc`  command from that shared root.
+If you are using `protoc` (or other similar tooling) to compile these protos yourself, 
+you will require a local copy. Clone this repository to your go source (typically 
+`$GOPATH/src`) and use `--proto_path` to specify this path to the compiler. You can run 
+your `protoc`  command from the root directory of your project.
 
 ```bash
 
-      PBDIR="{your_project_dir}/pb/"
+      PBDIR="api/pb/"
       protoc \
-        --proto_path="go-packages/pkg/" \
+        --proto_path="$GOPATH/src/" \ {you may need to adjust this to your go source path}
         --proto_path=$PBDIR \
         --plugin=grpc \
         --go_out=$PBDIR --go_opt=paths=source_relative \
@@ -54,7 +52,7 @@ your internal methods.
 
 ```go
 import (
-  "github.com/caring/go-packages/pkg/pagination"
+  pagination "github.com/caring/go-packages/pkg/pagination/pb"
 )
 
 type listFeatureCategoryMethods interface {

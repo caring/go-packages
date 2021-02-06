@@ -1,0 +1,15 @@
+############################
+#
+#      Basic Types
+#
+############################
+
+# PageInfo contains information about the 
+# current page in the pagination
+type PageInfo {
+  hasPreviousPage: Boolean!
+  hasNextPage: Boolean!
+  startCursor: String!
+  endCursor: String!
+}
+
