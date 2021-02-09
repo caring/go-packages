@@ -27,7 +27,7 @@ message ListIdentityRequest {
 }
 ```
 Note in the above, due to the way proto imports work, you will need to specify the version and tag in your path. 
-You can more easily find what that is after running go get as noted below.
+You can more easily find what that is after running `go get` as noted below.
 
 If you are using `protoc` (or other similar tooling) to compile these protos yourself, 
 you will require a local copy. Run `go get github.com/caring/go-packages/v2` (typically will install into
