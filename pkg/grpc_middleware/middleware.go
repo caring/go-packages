@@ -1,8 +1,8 @@
 package grpc_middleware
 
 import (
-	"github.com/caring/go-packages/pkg/logging"
-	"github.com/caring/go-packages/pkg/tracing"
+	"github.com/caring/go-packages/v2/pkg/logging"
+	"github.com/caring/go-packages/v2/pkg/tracing"
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"google.golang.org/grpc"
 )

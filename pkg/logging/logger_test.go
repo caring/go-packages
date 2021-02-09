@@ -3,7 +3,7 @@ package logging
 import (
 	"testing"
 
-	"github.com/caring/go-packages/pkg/logging/internal/exit"
+	"github.com/caring/go-packages/v2/pkg/logging/internal/exit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

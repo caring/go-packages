@@ -3,7 +3,7 @@ package logctx
 import (
 	"context"
 
-	"github.com/caring/go-packages/pkg/logging"
+	"github.com/caring/go-packages/v2/pkg/logging"
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 )
 

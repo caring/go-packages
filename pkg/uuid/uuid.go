@@ -2,7 +2,7 @@ package uuid
 
 import (
 	"database/sql"
-	"github.com/caring/go-packages/pkg/errors"
+	"github.com/caring/go-packages/v2/pkg/errors"
 	goouid "github.com/google/uuid"
 )
 

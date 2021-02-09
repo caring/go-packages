@@ -3,7 +3,7 @@ package messaging
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sns"
-	"github.com/caring/go-packages/pkg/logging"
+	"github.com/caring/go-packages/v2/pkg/logging"
 )
 
 const (
