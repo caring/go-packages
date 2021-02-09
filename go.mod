@@ -1,4 +1,4 @@
-module github.com/caring/go-packages
+module github.com/caring/go-packages/v2
 
 go 1.13
 
