@@ -1,3 +1,4 @@
+package pagination
 
 // PageInfo represents params from a page response
 type PageInfo struct {
