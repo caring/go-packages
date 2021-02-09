@@ -13,7 +13,7 @@ reference the base of this repository, for example:
 ```protobuf
 syntax = "proto3";
 
-import "github.com/caring/go-packages/pkg/pagination/pb/pagination.proto";
+import "github.com/caring/go-packages/v2@v2.0.1/pkg/pagination/pb/pagination.proto";
 
 
 // A message representing listing identities
@@ -26,17 +26,19 @@ message ListIdentityRequest {
   }
 }
 ```
+Not in the above, due to the way proto imports work, you will need to specify the version and tag in your path. 
+You can more easily find what that is after running go get as noted below.
 
 If you are using `protoc` (or other similar tooling) to compile these protos yourself, 
-you will require a local copy. Clone this repository to your go source (typically 
-`$GOPATH/src`) and use `--proto_path` to specify this path to the compiler. You can run 
+you will require a local copy. Run `go get github.com/caring/go-packages/v2` (typically will install into
+`$GOPATH/pkg/mod/`) and use `--proto_path` to specify this path to the compiler. You can run 
 your `protoc`  command from the root directory of your project.
 
 ```bash
 
       PBDIR="api/pb/"
       protoc \
-        --proto_path="$GOPATH/src/" \ {you may need to adjust this to your go source path}
+        --proto_path="$GOPATH/pkg/mod/" \
         --proto_path=$PBDIR \
         --plugin=grpc \
         --go_out=$PBDIR --go_opt=paths=source_relative \
@@ -44,15 +46,36 @@ your `protoc`  command from the root directory of your project.
         $PBDIR*.proto
 ```
 
-## Using the go package
+## Modifying the generated code.
 
-In order to use the package, you will need to import it into any go package
-you want to use it in. Then refer to the pagination methods as needed within
-your internal methods.
+Note that when you generate your go code, proto will not specify the `v2` part of
+your import path. Thus you will need to edit your generated go files, and add the
+major version to the import path.
 
+Change:
 ```go
 import (
   pagination "github.com/caring/go-packages/pkg/pagination/pb"
+)
+```
+
+To (with the correct version)
+```go
+import (
+  pagination "github.com/caring/go-packages/v2/pkg/pagination/pb"
+)
+```
+
+## Using the go package
+
+In order to use the package, you will need to import it into any go package
+you want to use it in. Note that with go modules, your import path needs to
+refer to the major version of the import in the path, if it exceeds v1. 
+Then refer to the pagination methods as needed within your internal methods.
+
+```go
+import (
+  pagination "github.com/caring/go-packages/v2/pkg/pagination/pb"
 )
 
 type listFeatureCategoryMethods interface {
