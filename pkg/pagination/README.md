@@ -13,7 +13,7 @@ reference file path in local path, for example:
 ```protobuf
 syntax = "proto3";
 
-import "github.com/caring/go-packages/v2@v2.0.1/pkg/pagination/pb/pagination.proto";
+import "github.com/caring/go-packages/v2@v2.0.2/pkg/pagination/pb/pagination.proto";
 
 
 // A message representing listing identities
@@ -44,26 +44,6 @@ your `protoc`  command from the root directory of your project.
         --go_out=$PBDIR --go_opt=paths=source_relative \
         --go-grpc_out=$PBDIR --go-grpc_opt=paths=source_relative \
         $PBDIR*.proto
-```
-
-## Modifying the generated code.
-
-Note that when you generate your go code, proto will not specify the `v2` part of
-your import path. Thus you will need to edit your generated go files, and add the
-major version to the import path.
-
-Change:
-```go
-import (
-  pagination "github.com/caring/go-packages/pkg/pagination/pb"
-)
-```
-
-To (with the correct version)
-```go
-import (
-  pagination "github.com/caring/go-packages/v2/pkg/pagination/pb"
-)
 ```
 
 ## Using the go package
