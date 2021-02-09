@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/caring/go-packages/pkg/logging/internal/writer"
+	"github.com/caring/go-packages/v2/pkg/logging/internal/writer"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

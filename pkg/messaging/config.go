@@ -2,7 +2,7 @@ package messaging
 
 import (
 	"errors"
-	"github.com/caring/go-packages/pkg/logging"
+	"github.com/caring/go-packages/v2/pkg/logging"
 	"os"
 )
 

@@ -1,6 +1,6 @@
 package main
 
-import "github.com/caring/go-packages/pkg/logging"
+import "github.com/caring/go-packages/v2/pkg/logging"
 
 func main() {
 	t := true

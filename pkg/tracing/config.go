@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/caring/go-packages/pkg/logging"
+	"github.com/caring/go-packages/v2/pkg/logging"
 )
 
 // Config contains initialization config for NewTracer

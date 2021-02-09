@@ -4,7 +4,7 @@ package logging
 import (
 	"io"
 
-	"github.com/caring/go-packages/pkg/logging/internal/exit"
+	"github.com/caring/go-packages/v2/pkg/logging/internal/exit"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"

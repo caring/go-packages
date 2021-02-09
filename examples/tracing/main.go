@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/caring/go-packages/pkg/tracing"
+	"github.com/caring/go-packages/v2/pkg/tracing"
 	"google.golang.org/grpc"
 )
 

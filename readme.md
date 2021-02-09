@@ -4,7 +4,7 @@ This repo contains reusable packages to use in caring.com's go projects.
 
 ## How to Use
 1. Include this package into your GOPRIVATE variable `export GOPRIVATE="github.com/caring/go-packages"`
-2. Run "go get github.com/caring/go-packages/pkg/[package you want]" or import into your go mod project.
+2. Run "go get github.com/caring/go-packages/v2/pkg/[package you want]" or import into your go mod project.
 3. Begin using in your project.
 
 
