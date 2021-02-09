@@ -8,7 +8,7 @@ ecosystem to support Pagination within our gRPC services.
 ## Using these protos
 
 In order to depend on these protos, use proto import statements that
-reference the base of this repository, for example:
+reference file path in local path, for example:
 
 ```protobuf
 syntax = "proto3";
@@ -26,7 +26,7 @@ message ListIdentityRequest {
   }
 }
 ```
-Not in the above, due to the way proto imports work, you will need to specify the version and tag in your path. 
+Note in the above, due to the way proto imports work, you will need to specify the version and tag in your path. 
 You can more easily find what that is after running go get as noted below.
 
 If you are using `protoc` (or other similar tooling) to compile these protos yourself, 
