@@ -10,6 +10,23 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type Logging interface {
+	GetInternalLogger() *zap.Logger
+	Sync() error
+	Close() error
+	NewChild(opts *FieldOpts, fields ...Field) *Logger
+	With(opts *FieldOpts, fields ...Field) *Logger
+	Debug(message string, additionalFields ...Field)
+	Report(message string, additionalFields ...Field)
+	Info(message string, additionalFields ...Field)
+	Warn(message string, additionalFields ...Field)
+	Error(message string, additionalFields ...Field)
+	Panic(message string, additionalFields ...Field)
+	DPanic(message string, additionalFields ...Field)
+	Fatal(message string, additionalFields ...Field)
+	getZapFields(fields ...Field) []zap.Field
+}
+
 // Logger provides fast, structured, type safe leveled logging. All log output methods are safe for concurrent use
 type Logger struct {
 	// The name of the service
