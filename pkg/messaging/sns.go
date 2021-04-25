@@ -32,20 +32,17 @@ func NewSNS(config *Config, params ...string) (*sns.SNS, string, error) {
 		return nil, "", err
 	}
 
-	topic := "EmailTopic"
-	if len(params) > 0 {
-		topic = params[0]
-	}
-	topics, err := client.ListTopics(nil)
-	if err != nil {
-		return nil, "", err
-	}
-
 	topicArn := ""
-	for _, t := range topics.Topics {
-		if strings.Contains(*t.TopicArn, topic) {
-			topicArn = *t.TopicArn
-			break
+	if len(params) > 0 {
+		topics, err := client.ListTopics(nil)
+		if err != nil {
+			return nil, "", err
+		}
+		for _, t := range topics.Topics {
+			if strings.Contains(*t.TopicArn, params[0]) {
+				topicArn = *t.TopicArn
+				break
+			}
 		}
 	}
 	return client, topicArn, nil
