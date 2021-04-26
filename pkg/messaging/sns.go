@@ -9,11 +9,11 @@ import (
 	"strings"
 )
 
-// NewSNS initializes a new AWS SNS client and returns topicArn - default for EmailTopic topic
-func NewSNS(config *Config, params ...string) (*sns.SNS, string, error) {
+// NewSNS initializes a new AWS SNS client
+func NewSNS(config *Config) (*sns.SNS, error) {
 	c, err := mergeAndPopulateConfig(config)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	awscfg := &aws.Config{
@@ -23,27 +23,31 @@ func NewSNS(config *Config, params ...string) (*sns.SNS, string, error) {
 
 	sess, err := session.NewSession(awscfg)
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
 
 	var client *sns.SNS
 	client = sns.New(sess)
 	if client == nil {
-		return nil, "", err
+		return nil, err
 	}
+	return client, nil
+}
 
+// TopicArn returns topicArn for a specific topic display name
+func TopicArn(client *sns.SNS, topic string) (string, error) {
 	topicArn := ""
-	if len(params) > 0 {
+	if len(topic) > 0 {
 		topics, err := client.ListTopics(nil)
 		if err != nil {
-			return nil, "", err
+			return "", err
 		}
 		for _, t := range topics.Topics {
-			if strings.Contains(*t.TopicArn, params[0]) {
+			if strings.Contains(*t.TopicArn, topic) {
 				topicArn = *t.TopicArn
 				break
 			}
 		}
 	}
-	return client, topicArn, nil
+	return topicArn, nil
 }

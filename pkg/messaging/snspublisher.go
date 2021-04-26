@@ -13,7 +13,7 @@ const (
 func Publish(client *sns.SNS, logger *logging.Logger, subject, topicArn, json string) (string, error) {
 	var err error
 	if client == nil || len(topicArn) == 0 {
-		client, topicArn, err = NewSNS(&Config{
+		client, err = NewSNS(&Config{
 			Logger: logger,
 		})
 		if err != nil {
