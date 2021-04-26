@@ -38,16 +38,19 @@ func NewSNS(config *Config) (*sns.SNS, error) {
 // TopicArn returns topicArn for a specific topic display name
 func TopicArn(client *sns.SNS, topic string) (topicArn string, err error) {
 	if len(topic) < 1 {
-		return "", errors.New("Invalid empty parameter topic")
+		err = errors.New("Invalid empty parameter topic")
+		return
 	}
 	topics, err := client.ListTopics(nil)
 	if err != nil {
-		return "", errors.Wrap(err, "Error executing sns.ListTopics")
+		err = errors.Wrap(err, "Error executing sns.ListTopics")
+		return
 	}
+
 	for _, t := range topics.Topics {
-		if strings.Contains(*t.TopicArn, topic) {
-			topicArn = *t.TopicArn
-			break
+		topicArn = *t.TopicArn
+		if topic == topicArn[strings.LastIndex(topicArn, ":")+1:] {
+			return
 		}
 	}
 	return
