@@ -6,6 +6,7 @@ import (
 	_ "github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/caring/go-packages/v2/pkg/errors"
 	"strings"
 )
 
@@ -35,19 +36,19 @@ func NewSNS(config *Config) (*sns.SNS, error) {
 }
 
 // TopicArn returns topicArn for a specific topic display name
-func TopicArn(client *sns.SNS, topic string) (string, error) {
-	topicArn := ""
-	if len(topic) > 0 {
-		topics, err := client.ListTopics(nil)
-		if err != nil {
-			return "", err
-		}
-		for _, t := range topics.Topics {
-			if strings.Contains(*t.TopicArn, topic) {
-				topicArn = *t.TopicArn
-				break
-			}
+func TopicArn(client *sns.SNS, topic string) (topicArn string, err error) {
+	if len(topic) < 1 {
+		return "", errors.New("Invalid empty parameter topic")
+	}
+	topics, err := client.ListTopics(nil)
+	if err != nil {
+		return "", errors.Wrap(err, "Error executing sns.ListTopics")
+	}
+	for _, t := range topics.Topics {
+		if strings.Contains(*t.TopicArn, topic) {
+			topicArn = *t.TopicArn
+			break
 		}
 	}
-	return topicArn, nil
+	return
 }
