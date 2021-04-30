@@ -3,7 +3,7 @@ package logging
 import "go.uber.org/zap"
 
 type DataField interface {
-	GetField() zap.Field
+	getField() zap.Field
 }
 
 // Field is a typed and structured log entry string key and value pair
@@ -11,7 +11,7 @@ type Field struct {
 	field zap.Field
 }
 
-func (f Field) GetField() zap.Field {
+func (f Field) getField() zap.Field {
 	return f.field
 }
 

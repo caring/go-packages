@@ -73,7 +73,7 @@ func Test_LoggerSetInternalFields(t *testing.T) {
 	t.Run("Accumulates fields on existing ones", func(t *testing.T) {
 		s := String("one", "two")
 		l := &Logger{
-			fields: []Field{s},
+			fields: []DataField{s},
 		}
 
 		ss := String("three", "four")
@@ -86,7 +86,7 @@ func Test_LoggerSetInternalFields(t *testing.T) {
 
 	t.Run("Overwrites accumulated fields when the options require", func(t *testing.T) {
 		l := &Logger{
-			fields: []Field{String("one", "two")},
+			fields: []DataField{String("one", "two")},
 		}
 
 		ss := String("three", "four")
@@ -134,7 +134,7 @@ func Test_LoggerLogFatal(t *testing.T) {
 func Test_LoggerLeveledMethods(t *testing.T) {
 	withLogger(config, func(logger *Logger, logs *observer.ObservedLogs) {
 		tests := []struct {
-			method        func(string, ...Field)
+			method        func(string, ...DataField)
 			expectedLevel zapcore.Level
 		}{
 			{logger.Debug, zap.DebugLevel},
