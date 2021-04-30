@@ -3,6 +3,7 @@ package tracing
 import (
 	"io"
 
+	"github.com/caring/go-packages/v2/pkg/logging"
 	"github.com/opentracing/opentracing-go"
 	"github.com/uber/jaeger-client-go"
 	"github.com/uber/jaeger-lib/metrics/prometheus"
@@ -49,15 +50,15 @@ func NewTracer(config *Config) (*Tracer, error) {
 		// create composite logger to log to the logger and report to the
 		// remote server
 		t.reporter = jaeger.NewCompositeReporter(
-			jaeger.NewLoggingReporter(l.NewJaegerLogger()),
+			jaeger.NewLoggingReporter(logging.NewJaegerLogger(l)),
 			jaeger.NewRemoteReporter(transport,
 				jaeger.ReporterOptions.Metrics(metrics),
-				jaeger.ReporterOptions.Logger(l.NewJaegerLogger()),
+				jaeger.ReporterOptions.Logger(logging.NewJaegerLogger(l)),
 			),
 		)
 	} else {
 		// Simple, logging only reporter
-		t.reporter = jaeger.NewLoggingReporter(l.NewJaegerLogger())
+		t.reporter = jaeger.NewLoggingReporter(logging.NewJaegerLogger(l))
 	}
 
 	// create a sampler for the spans so that we don't report every single span which would be untenable
