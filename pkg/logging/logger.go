@@ -14,17 +14,17 @@ type Logging interface {
 	GetInternalLogger() *zap.Logger
 	Sync() error
 	Close() error
-	NewChild(opts *FieldOpts, fields ...Field) *Logger
-	With(opts *FieldOpts, fields ...Field) *Logger
-	Debug(message string, additionalFields ...Field)
-	Report(message string, additionalFields ...Field)
-	Info(message string, additionalFields ...Field)
-	Warn(message string, additionalFields ...Field)
-	Error(message string, additionalFields ...Field)
-	Panic(message string, additionalFields ...Field)
-	DPanic(message string, additionalFields ...Field)
-	Fatal(message string, additionalFields ...Field)
-	getZapFields(fields ...Field) []zap.Field
+	NewChild(opts *FieldOpts, fields ...DataField) *Logger
+	With(opts *FieldOpts, fields ...DataField) *Logger
+	Debug(message string, additionalFields ...DataField)
+	Report(message string, additionalFields ...DataField)
+	Info(message string, additionalFields ...DataField)
+	Warn(message string, additionalFields ...DataField)
+	Error(message string, additionalFields ...DataField)
+	Panic(message string, additionalFields ...DataField)
+	DPanic(message string, additionalFields ...DataField)
+	Fatal(message string, additionalFields ...DataField)
+	getZapFields(fields ...DataField) []zap.Field
 }
 
 // Logger provides fast, structured, type safe leveled logging. All log output methods are safe for concurrent use
@@ -39,7 +39,7 @@ type Logger struct {
 	userID         string
 	endpoint       string
 	env            string
-	fields         []Field
+	fields         []DataField
 
 	loggerName      string
 	monitorLogger   *zap.Logger
@@ -61,7 +61,7 @@ func NewLogger(config *Config) (*Logger, error) {
 	l := Logger{
 		serviceName: c.ServiceName,
 		env:         c.Env,
-		fields:      []Field{},
+		fields:      []DataField{},
 		loggerName:  c.LoggerName,
 	}
 
@@ -183,57 +183,63 @@ type FieldOpts struct {
 // NewChild clones logger and returns a child instance where any internal fields are overwritten
 // with any non 0 values passed in, or if the field reset is set to true then the field will
 // be set to a zero value. If nil options are passed in then the logger is simply cloned without change.
-func (l *Logger) NewChild(opts *FieldOpts, fields ...Field) *Logger {
+func (l *Logger) NewChild(opts *FieldOpts, fields ...DataField) *Logger {
 	newChild := *l
 	newChild.with(opts, fields...)
 
 	return &newChild
 }
 
+/*
+
+	have NewChild(*"github.com/caring/go-packages/v2/pkg/logging".FieldOpts, ..."github.com/caring/go-packages/v2/pkg/logging".DataField) *"github.com/caring/go-packages/v2/pkg/logging".Logger
+	want NewChild(*"github.com/caring/go-packages/v2/pkg/logging".FieldOpts, ..."github.com/caring/go-packages/v2/pkg/logging".Field) *"github.com/caring/go-packages/v2/pkg/logging".Logger
+*/
+
 // With sets the internal fields with the provided options.
 // See the options struct for more details
-func (l *Logger) With(opts *FieldOpts, fields ...Field) *Logger {
+func (l *Logger) With(opts *FieldOpts, fields ...DataField) *Logger {
 	return l.with(opts, fields...)
 }
 
 // Debug logs the message at debug level output. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
-func (l *Logger) Debug(message string, additionalFields ...Field) {
+func (l *Logger) Debug(message string, additionalFields ...DataField) {
 	f := l.getZapFields(additionalFields...)
 	l.monitorLogger.Debug(message, f...)
 }
 
 // Report logs the message at info level output to the BI pipeline. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
-func (l *Logger) Report(message string, additionalFields ...Field) {
+func (l *Logger) Report(message string, additionalFields ...DataField) {
 	f := l.getZapFields(additionalFields...)
 	l.reportingLogger.Info(message, f...)
 }
 
 // Info logs the message at info level output. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
-func (l *Logger) Info(message string, additionalFields ...Field) {
+func (l *Logger) Info(message string, additionalFields ...DataField) {
 	f := l.getZapFields(additionalFields...)
 	l.monitorLogger.Info(message, f...)
 }
 
 // Warn logs the message at warn level output. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
-func (l *Logger) Warn(message string, additionalFields ...Field) {
+func (l *Logger) Warn(message string, additionalFields ...DataField) {
 	f := l.getZapFields(additionalFields...)
 	l.monitorLogger.Warn(message, f...)
 }
 
 // Error logs the message at error level output. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
-func (l *Logger) Error(message string, additionalFields ...Field) {
+func (l *Logger) Error(message string, additionalFields ...DataField) {
 	f := l.getZapFields(additionalFields...)
 	l.monitorLogger.Error(message, f...)
 }
 
 // Panic logs the message at panic level output, then panics. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
-func (l *Logger) Panic(message string, additionalFields ...Field) {
+func (l *Logger) Panic(message string, additionalFields ...DataField) {
 	f := l.getZapFields(additionalFields...)
 	l.monitorLogger.Panic(message, f...)
 }
@@ -244,14 +250,14 @@ func (l *Logger) Panic(message string, additionalFields ...Field) {
 // If the logger is in development mode, it then panics (DPanic means
 // "development panic"). This is useful for catching errors that are
 // recoverable, but shouldn't ever happen.
-func (l *Logger) DPanic(message string, additionalFields ...Field) {
+func (l *Logger) DPanic(message string, additionalFields ...DataField) {
 	f := l.getZapFields(additionalFields...)
 	l.monitorLogger.DPanic(message, f...)
 }
 
 // Fatal logs the message at fatal level output, then calls os.Exit. This includes the additional fields provided,
 // the standard fields and any fields accumulated on the logger.
-func (l *Logger) Fatal(message string, additionalFields ...Field) {
+func (l *Logger) Fatal(message string, additionalFields ...DataField) {
 	// This one method differs so that we may abstract away os.Exit into a mockable
 	// and testable internal library of our own. Zap has done this, but it is internal
 	// so we cant use it
@@ -264,7 +270,7 @@ func (l *Logger) Fatal(message string, additionalFields ...Field) {
 }
 
 // getZapFields aggregates the Logger fields into a typed and structured set of zap fields.
-func (l *Logger) getZapFields(fields ...Field) []zap.Field {
+func (l *Logger) getZapFields(fields ...DataField) []zap.Field {
 	var internalFieldcount = 7
 	// 6 is the number of internal fields that appear on every log entry
 	total := internalFieldcount + len(fields) + len(l.fields)
@@ -281,12 +287,12 @@ func (l *Logger) getZapFields(fields ...Field) []zap.Field {
 
 	i := internalFieldcount
 	for _, f := range l.fields {
-		zapped[i] = f.field
+		zapped[i] = f.GetField()
 		i++
 	}
 
 	for _, f := range fields {
-		zapped[i] = f.field
+		zapped[i] = f.GetField()
 		i++
 	}
 
@@ -295,7 +301,7 @@ func (l *Logger) getZapFields(fields ...Field) []zap.Field {
 
 // With sets the internal fields with the provided options.
 // See the options struct for more details
-func (l *Logger) with(opts *FieldOpts, fields ...Field) *Logger {
+func (l *Logger) with(opts *FieldOpts, fields ...DataField) *Logger {
 	if opts == nil {
 		l.fields = append(l.fields, fields...)
 		return l
@@ -341,15 +347,15 @@ func (l *Logger) with(opts *FieldOpts, fields ...Field) *Logger {
 }
 
 // accumulates the given fields onto the existing accumulated fields of logger
-func (l *Logger) accumulateFields(f ...Field) {
+func (l *Logger) accumulateFields(f ...DataField) {
 	l.fields = append(l.fields, f...)
 }
 
 // overwrites the accumulated fields of logger with the fields passed in,
 // a nil argument writes an empty slice to the fields
-func (l *Logger) writeFields(f ...Field) {
+func (l *Logger) writeFields(f ...DataField) {
 	if f == nil {
-		l.fields = []Field{}
+		l.fields = []DataField{}
 	}
 	l.fields = f
 }

@@ -2,9 +2,17 @@ package logging
 
 import "go.uber.org/zap"
 
+type DataField interface {
+	GetField() zap.Field
+}
+
 // Field is a typed and structured log entry string key and value pair
 type Field struct {
 	field zap.Field
+}
+
+func (f Field) GetField() zap.Field {
+	return f.field
 }
 
 // String constructs a field with a string value
