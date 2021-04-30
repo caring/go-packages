@@ -190,12 +190,6 @@ func (l *Logger) NewChild(opts *FieldOpts, fields ...DataField) *Logger {
 	return &newChild
 }
 
-/*
-
-	have NewChild(*"github.com/caring/go-packages/v2/pkg/logging".FieldOpts, ..."github.com/caring/go-packages/v2/pkg/logging".DataField) *"github.com/caring/go-packages/v2/pkg/logging".Logger
-	want NewChild(*"github.com/caring/go-packages/v2/pkg/logging".FieldOpts, ..."github.com/caring/go-packages/v2/pkg/logging".Field) *"github.com/caring/go-packages/v2/pkg/logging".Logger
-*/
-
 // With sets the internal fields with the provided options.
 // See the options struct for more details
 func (l *Logger) With(opts *FieldOpts, fields ...DataField) *Logger {
