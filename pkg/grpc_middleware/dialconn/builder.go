@@ -143,8 +143,11 @@ func (b *ConnBuilder) SetConnInfo(dns, port string) error {
 	b.dns = &dns
 
 	i, err := strconv.ParseUint(port, 10, 32)
-	if err != nil || i < 0 || i > 65353 {
+	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("invalid port number: %s", port))
+	}
+	if i < 0 || i > 65535 {
+		return errors.Errorf("invalid port number: %s", port)
 	}
 	b.port = &port
 
