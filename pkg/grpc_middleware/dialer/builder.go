@@ -5,8 +5,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"io/fs"
 	"log"
+	"net"
 	"net/url"
+	"os"
 	"strconv"
 	"time"
 
@@ -29,12 +32,12 @@ type Builder struct {
 	connectParams   grpc.ConnectParams
 	keepAliveParams keepalive.ClientParameters
 	credentials     credentials.PerRPCCredentials
-	tlsConfig       *tls.Config
 	uinterceptors   []grpc.UnaryClientInterceptor
 	sinterceptors   []grpc.StreamClientInterceptor
+	tlsConfig       *tls.Config
 	dns             *string
-	port            *string
-	withTLS         *bool
+	port            *uint16
+	fs              fs.FS
 }
 
 // WithOptions allows possing in multiple grpc dial options
@@ -188,26 +191,23 @@ func (b *Builder) SetConnInfo(dns, port string, tls bool) error {
 	}
 	b.dns = &dns
 
-	i, err := strconv.ParseUint(port, 10, 32)
+	i, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("invalid port number: %s", port))
 	}
-	if i > 65535 {
-		return errors.Errorf("invalid port number: %s", port)
-	}
-	b.port = &port
-	b.withTLS = &tls
+	p := uint16(i)
+	b.port = &p
 
 	return nil
 }
 
 // GetConnInfo returns the dns and port that were set, and errors if either
 // were null, allowing verfication prior to attempting the connection
-func (b *Builder) GetConnInfo() (dns string, port string, useTLS bool, err error) {
-	if b.dns == nil || b.port == nil || b.withTLS == nil {
-		return "", "", false, errors.New("Connection info not fully set")
+func (b *Builder) GetConnInfo() (dns string, port uint16, err error) {
+	if b.dns == nil || b.port == nil {
+		return "", 0, errors.New("Connection info not fully set")
 	}
-	return *b.dns, *b.port, *b.withTLS, nil
+	return *b.dns, *b.port, nil
 }
 
 // SetConnAddr sets connection information as well as configures some common tls and authentication options
@@ -228,22 +228,33 @@ func (b *Builder) SetConnAddr(addr string) error {
 	return nil
 }
 
+func (b *Builder) WithFS(fs fs.FS) {
+	b.fs = fs
+}
+
+func (b *Builder) GetFS() fs.FS {
+	if b.fs == nil {
+		return os.DirFS(".")
+	}
+	return b.fs
+}
+
 // Dial returns the client connection to the server.
 // context is ignored unless builder is set to block using WithBlock(true)
-func (b *Builder) Dial(ctx context.Context) (*grpc.ClientConn, error) {
+func (b *Builder) Dial(ctx context.Context, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	dns, port, withTLS, err := b.GetConnInfo()
+	dns, port, err := b.GetConnInfo()
 	if err != nil {
 		return nil, fmt.Errorf("target connection parameter missing: dns and/or port not set")
 	}
 
-	addr := dns + ":" + port
-	log.Printf("Target to connect = %s, tls = %t", addr, withTLS)
+	addr := net.JoinHostPort(dns, strconv.Itoa(int(port)))
+	log.Printf("Target to connect = %s, tls = %t", addr)
 
-	options := b.joinOptions(withTLS)
+	options := b.joinOptions(opts...)
 
 	cc, err := grpc.DialContext(ctx, addr, options...)
 
@@ -255,12 +266,12 @@ func (b *Builder) Dial(ctx context.Context) (*grpc.ClientConn, error) {
 
 // DialAddr returns the client connection to the server
 // context is ignored unless builder is set to block using WithBlock(true)
-func (b *Builder) DialAddr(ctx context.Context, addr string) (*grpc.ClientConn, error) {
+func (b *Builder) DialAddr(ctx context.Context, addr string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	if err := b.SetConnAddr(addr); err != nil {
 		return nil, err
 	}
 
-	return b.Dial(ctx)
+	return b.Dial(ctx, opts...)
 }
 
 // Clone the builder and return copy
@@ -286,10 +297,6 @@ func (b *Builder) Clone() *Builder {
 		v := *b.port
 		c.port = &v
 	}
-	if b.withTLS != nil {
-		v := *b.withTLS
-		c.withTLS = &v
-	}
 	if b.tlsConfig != nil {
 		c.tlsConfig = &tls.Config{
 			Certificates: make([]tls.Certificate, len(b.tlsConfig.Certificates)),
@@ -300,7 +307,7 @@ func (b *Builder) Clone() *Builder {
 	return c
 }
 
-func (b *Builder) joinOptions(withTLS bool) []grpc.DialOption {
+func (b *Builder) joinOptions(opts ...grpc.DialOption) []grpc.DialOption {
 	var options []grpc.DialOption
 	if b.enabledBlocking {
 		options = append(options, grpc.WithBlock())
@@ -309,11 +316,13 @@ func (b *Builder) joinOptions(withTLS bool) []grpc.DialOption {
 	options = append(options, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(b.uinterceptors...)))
 	options = append(options, grpc.WithStreamInterceptor(grpc_middleware.ChainStreamClient(b.sinterceptors...)))
 
-	if withTLS {
+	if b.tlsConfig != nil {
 		options = append(options, grpc.WithTransportCredentials(credentials.NewTLS(b.tlsConfig)))
 	} else {
 		options = append(options, grpc.WithInsecure())
 	}
+
+	options = append(options, opts...)
 
 	return options
 }

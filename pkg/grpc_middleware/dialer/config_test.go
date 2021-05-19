@@ -1,4 +1,4 @@
-package dialer_test
+package dialer
 
 import (
 	"testing"
@@ -12,15 +12,15 @@ func TestReadConfig(t *testing.T) {
 	is := is.New(t)
 
 	// Empty config should return nil and error
-	cfg, err := dialer.ReadConfig("")
+	cfg, err := ReadConfig("")
 	is.True(err != nil)
 	is.Equal(cfg, nil)
 	is.Equal(cfg.String(), "<nil>")
-	err = cfg.ApplyToBuilder(&dialer.Builder{})
+	err = cfg.ApplyToBuilder(&Builder{})
 	is.True(err != nil)
 
 	// Populated config should parse
-	cfg, err = dialer.ReadConfig("tcp://localhost:1234")
+	cfg, err = ReadConfig("tcp://localhost:1234")
 	is.NoErr(err)
 	is.Equal(cfg.String(), "tcp://localhost:1234")
 	tls, err := cfg.TLSConfig()
@@ -28,7 +28,7 @@ func TestReadConfig(t *testing.T) {
 	is.Equal(tls, nil)
 
 	// Populated config should apply to builder
-	err = cfg.ApplyToBuilder(&dialer.Builder{})
+	err = cfg.ApplyToBuilder(&Builder{})
 	is.NoErr(err)
 
 	// Applying to nil should fail
@@ -36,11 +36,11 @@ func TestReadConfig(t *testing.T) {
 	is.True(err != nil)
 
 	// Applying to nil interface should fail
-	err = cfg.ApplyToBuilder((*dialer.Builder)(nil))
+	err = cfg.ApplyToBuilder((*Builder)(nil))
 	is.True(err != nil)
 
 	// tls string should parse
-	cfg, err = dialer.ReadConfig("tls://localhost:1234")
+	cfg, err = ReadConfig("tls://localhost:1234")
 	is.NoErr(err)
 	is.Equal(cfg.String(), "tls://localhost:1234")
 	tls, err = cfg.TLSConfig()
@@ -48,7 +48,7 @@ func TestReadConfig(t *testing.T) {
 	is.Equal(tls.InsecureSkipVerify, false)
 
 	// tls string with skip_verify should parse
-	cfg, err = dialer.ReadConfig("tls://localhost:1234?skip_verify=true")
+	cfg, err = ReadConfig("tls://localhost:1234?skip_verify=true")
 	is.NoErr(err)
 	is.Equal(cfg.String(), "tls://localhost:1234?skip_verify=true")
 	tls, err = cfg.TLSConfig()

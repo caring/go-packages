@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"io/fs"
 	"io/ioutil"
 	"net/url"
 
@@ -46,6 +47,8 @@ func ReadConfig(addr string) (*Config, error) {
 	}
 
 	c.host = u.Hostname()
+	c.withTLS = true
+
 	switch u.Scheme {
 	case "tcp":
 		c.port, c.withTLS = "80", false
@@ -110,8 +113,7 @@ func (c *Config) String() string {
 	return fmt.Sprintf("%s://%s:%s%s", scheme, c.host, c.port, qry)
 }
 
-// TLSConfig build config struct and load certificates if required.
-func (c *Config) TLSConfig() (*tls.Config, error) {
+func (c *Config) loadTLS(fs fs.FS) (*tls.Config, error) {
 	if c == nil {
 		return nil, errors.Errorf("config is not initialized")
 	}
@@ -155,7 +157,9 @@ func (c *Config) ApplyToBuilder(cb *Builder) error {
 		return errors.Wrap(err, "unable to set connect options")
 	}
 	if c.withTLS {
-		tlsConfig, err := c.TLSConfig()
+		fs := cb.GetFS()
+
+		tlsConfig, err := c.loadTLS(fs)
 		if err != nil {
 			return errors.Wrap(err, "unable to read tls options")
 		}
