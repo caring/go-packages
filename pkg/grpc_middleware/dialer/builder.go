@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/fs"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -252,14 +251,13 @@ func (b *Builder) Dial(ctx context.Context, opts ...grpc.DialOption) (*grpc.Clie
 	}
 
 	addr := net.JoinHostPort(dns, strconv.Itoa(int(port)))
-	log.Printf("Target to connect = %s, tls = %t", addr)
 
 	options := b.joinOptions(opts...)
 
 	cc, err := grpc.DialContext(ctx, addr, options...)
 
 	if err != nil {
-		return nil, fmt.Errorf("unable to connect to client. error = %+v", err)
+		return nil, fmt.Errorf("unable to connect to client %s. error = %+v", addr, err)
 	}
 	return cc, nil
 }
