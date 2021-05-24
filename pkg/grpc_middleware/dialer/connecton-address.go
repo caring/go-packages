@@ -9,12 +9,13 @@ import (
 	"io/fs"
 	"io/ioutil"
 	"net/url"
+	"strings"
 
 	"github.com/caring/go-packages/v2/pkg/errors"
 )
 
-// Config read from environment or connection builder.
-type Config struct {
+// ConnectionAddress read from environment or connection builder.
+type ConnectionAddress struct {
 	host       string
 	port       string
 	caFile     string
@@ -22,23 +23,40 @@ type Config struct {
 	clientKey  string
 	tokenAuth  string
 	basicAuth  string
-	withTLS    bool
+	disableTLS bool
 	skipVerify bool
 }
 
-// ReadConfig reads connection string from provided env variable name and returns config.
-// If there are tls options the Config value can be used to generate the tls.Config
+// ReadConnectionAddress reads connection string from provided env variable name and returns config.
+// If there are tls options the ConnectionAddress value can be used to generate the tls.ConnectionAddress
 // the format is tls://hostname:port (or tcp://hostname:port if developing locally without TLS)
 // Optional TLS parameters:
-//   skip_verify=true        ignore server CA verification.
-//   ca_file=./filename.pem  CA of service for verification.
+//   skip_verify=true             ignore server CA verification.
+//   ca_file=./filename.pem       CA of service for verification.
+//   client_cert=./filename.pem   Client certificate to use for authentication.
+//   client_key=./filename.pem    Client private key to use for authentication.
+//   basic_auth=user:pass         Username and Password for basic authentication.
+//   token_auth=token             Bearer token for token authentication.
 // NOTE: The connection process is non-blocking so a timeout is not needed. To force a blocking add grpc.Blocking() to the opts
-func ReadConfig(addr string) (*Config, error) {
+func ReadConnectionAddress(addr string) (*ConnectionAddress, error) {
+	var c ConnectionAddress
+
 	if addr == "" {
-		return nil, errors.Errorf("connection string is empty")
+		if c.host == "" || c.port == "" {
+			return nil, errors.Errorf("connection string is empty")
+		}
+
+		return &c, nil
 	}
 
-	var c Config
+	// Remove dns: if present
+	addr = strings.TrimPrefix(addr, "dns:")
+
+	// add tls scheme if no scheme is present.
+	if !strings.Contains(addr, "://") {
+		addr = "tls://" + addr
+	}
+
 	// If there is a connection string use that.
 	// format: tls://hostname:port or tcp://hostname:port
 	u, err := url.Parse(addr)
@@ -47,43 +65,40 @@ func ReadConfig(addr string) (*Config, error) {
 	}
 
 	c.host = u.Hostname()
-	c.withTLS = true
+	if c.host == "" {
+		return nil, errors.Wrap(err, "connection string has no hostname")
+	}
 
 	switch u.Scheme {
-	case "tcp":
-		c.port, c.withTLS = "80", false
-	case "tls":
-		c.port, c.withTLS = "443", true
+	case "tcp", "http":
+		c.port, c.disableTLS = "80", true
+	case "tls", "https":
+		c.port, c.disableTLS = "443", false
 	}
 
 	if port := u.Port(); port != "" {
 		c.port = port
 	}
 
-	if c.withTLS {
+	if !c.disableTLS {
 		if skip := u.Query().Get("skip_verify"); skip == "true" {
 			c.skipVerify = true
 		} else {
 			c.caFile = u.Query().Get("ca_file")
-			c.clientCert = u.Query().Get("client_cert")
-			c.clientKey = u.Query().Get("client_key")
 		}
 	}
-
-	c.basicAuth = u.Query().Get("basic_auth")
-	c.tokenAuth = u.Query().Get("token_auth")
 
 	return &c, nil
 }
 
-func (c *Config) String() string {
+func (c *ConnectionAddress) String() string {
 	if c == nil {
 		return "<nil>"
 	}
 
-	scheme := "tcp"
-	if c.withTLS {
-		scheme = "tls"
+	scheme := "tls"
+	if c.disableTLS {
+		scheme = "tcp"
 	}
 	query := make(url.Values)
 	if c.skipVerify {
@@ -113,23 +128,23 @@ func (c *Config) String() string {
 	return fmt.Sprintf("%s://%s:%s%s", scheme, c.host, c.port, qry)
 }
 
-func (c *Config) loadTLS(fs fs.FS) (*tls.Config, error) {
+func (c *ConnectionAddress) loadTLS(fs fs.FS) (*tls.Config, error) {
 	if c == nil {
 		return nil, errors.Errorf("config is not initialized")
 	}
-	if !c.withTLS {
+	if c.disableTLS {
 		return nil, errors.Errorf("TLS is not enabled")
 	}
 
-	tlsConfig := tls.Config{InsecureSkipVerify: c.skipVerify}
+	tlsConnectionAddress := tls.Config{InsecureSkipVerify: c.skipVerify}
 
 	if c.caFile != "" {
 		pemServerCA, err := ioutil.ReadFile(c.caFile)
 		if err != nil {
 			return nil, errors.Wrap(err, "error reading CA file")
 		}
-		tlsConfig.RootCAs = x509.NewCertPool()
-		tlsConfig.RootCAs.AppendCertsFromPEM(pemServerCA)
+		tlsConnectionAddress.RootCAs = x509.NewCertPool()
+		tlsConnectionAddress.RootCAs.AppendCertsFromPEM(pemServerCA)
 	}
 
 	if c.clientCert != "" && c.clientKey != "" {
@@ -138,13 +153,13 @@ func (c *Config) loadTLS(fs fs.FS) (*tls.Config, error) {
 			return nil, errors.Wrap(err, "unable to read client certificate or key file")
 		}
 
-		tlsConfig.Certificates = []tls.Certificate{cert}
+		tlsConnectionAddress.Certificates = []tls.Certificate{cert}
 	}
 
-	return &tlsConfig, nil
+	return &tlsConnectionAddress, nil
 }
 
-func (c *Config) ApplyToBuilder(cb *Builder) error {
+func (c *ConnectionAddress) ApplyToBuilder(cb *Builder) error {
 	if c == nil {
 		return errors.New("config is nil")
 	}
@@ -152,19 +167,19 @@ func (c *Config) ApplyToBuilder(cb *Builder) error {
 		return errors.New("connection builder is nil")
 	}
 
-	err := cb.SetConnInfo(c.host, c.port, c.withTLS)
+	err := cb.SetConnInfo(c.host, c.port, !c.disableTLS)
 	if err != nil {
 		return errors.Wrap(err, "unable to set connect options")
 	}
-	if c.withTLS {
+	if !c.disableTLS {
 		fs := cb.GetFS()
 
-		tlsConfig, err := c.loadTLS(fs)
+		tlsConnectionAddress, err := c.loadTLS(fs)
 		if err != nil {
 			return errors.Wrap(err, "unable to read tls options")
 		}
-		cb.WithServerTransportCredentials(tlsConfig.InsecureSkipVerify, tlsConfig.RootCAs)
-		cb.WithClientTransportCredentials(tlsConfig.Certificates...)
+		cb.WithServerTransportCredentials(tlsConnectionAddress.InsecureSkipVerify, tlsConnectionAddress.RootCAs)
+		cb.WithClientTransportCredentials(tlsConnectionAddress.Certificates...)
 	}
 	if c.basicAuth != "" {
 		cb.WithClientCredentials(authorization{authType: basicAuth, content: c.basicAuth})

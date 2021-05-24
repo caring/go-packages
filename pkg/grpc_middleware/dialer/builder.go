@@ -209,14 +209,11 @@ func (b *Builder) GetConnInfo() (dns string, port uint16, err error) {
 	return *b.dns, *b.port, nil
 }
 
-// SetConnAddr sets connection information as well as configures some common tls and authentication options
-// based on a provided connection string.
-// the format is tls://hostname:port (or tcp://hostname:port if developing locally without TLS)
-// Optional TLS parameters:
-//   skip_verify=true        ignore server CA verification.
-//   ca_file=./filename.pem  CA of service for verification.
-func (b *Builder) SetConnAddr(addr string) error {
-	cfg, err := ReadConfig(addr)
+// SetConnectionAddress sets connection information as well as configures some common tls and authentication options
+// based on a provided connection address.
+// see comment on ConnectionAddress for format of the connection address.
+func (b *Builder) SetConnectionAddress(addr string) error {
+	cfg, err := ReadConnectionAddress(addr)
 	if err != nil {
 		return err
 	}
@@ -265,7 +262,7 @@ func (b *Builder) Dial(ctx context.Context, opts ...grpc.DialOption) (*grpc.Clie
 // DialAddr returns the client connection to the server
 // context is ignored unless builder is set to block using WithBlock(true)
 func (b *Builder) DialAddr(ctx context.Context, addr string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	if err := b.SetConnAddr(addr); err != nil {
+	if err := b.SetConnectionAddress(addr); err != nil {
 		return nil, err
 	}
 

@@ -4,15 +4,13 @@ import (
 	"testing"
 
 	"github.com/matryer/is"
-
-	"github.com/caring/go-packages/v2/pkg/grpc_middleware/dialer"
 )
 
-func TestReadConfig(t *testing.T) {
+func TestReadConnectionAddress(t *testing.T) {
 	is := is.New(t)
 
 	// Empty config should return nil and error
-	cfg, err := ReadConfig("")
+	cfg, err := ReadConnectionAddress("")
 	is.True(err != nil)
 	is.Equal(cfg, nil)
 	is.Equal(cfg.String(), "<nil>")
@@ -20,10 +18,10 @@ func TestReadConfig(t *testing.T) {
 	is.True(err != nil)
 
 	// Populated config should parse
-	cfg, err = ReadConfig("tcp://localhost:1234")
+	cfg, err = ReadConnectionAddress("tcp://localhost:1234")
 	is.NoErr(err)
 	is.Equal(cfg.String(), "tcp://localhost:1234")
-	tls, err := cfg.TLSConfig()
+	tls, err := cfg.loadTLS(nil)
 	is.True(err != nil)
 	is.Equal(tls, nil)
 
@@ -40,18 +38,18 @@ func TestReadConfig(t *testing.T) {
 	is.True(err != nil)
 
 	// tls string should parse
-	cfg, err = ReadConfig("tls://localhost:1234")
+	cfg, err = ReadConnectionAddress("tls://localhost:1234")
 	is.NoErr(err)
 	is.Equal(cfg.String(), "tls://localhost:1234")
-	tls, err = cfg.TLSConfig()
+	tls, err = cfg.loadTLS(nil)
 	is.NoErr(err)
 	is.Equal(tls.InsecureSkipVerify, false)
 
 	// tls string with skip_verify should parse
-	cfg, err = ReadConfig("tls://localhost:1234?skip_verify=true")
+	cfg, err = ReadConnectionAddress("tls://localhost:1234?skip_verify=true")
 	is.NoErr(err)
 	is.Equal(cfg.String(), "tls://localhost:1234?skip_verify=true")
-	tls, err = cfg.TLSConfig()
+	tls, err = cfg.loadTLS(nil)
 	is.NoErr(err)
 	is.Equal(tls.InsecureSkipVerify, true)
 }
