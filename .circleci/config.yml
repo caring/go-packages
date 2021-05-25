@@ -6,7 +6,7 @@ jobs:
   test:
     executor:
       name: go/default
-      tag: '1.14'
+      tag: '1.16'
     environment:
       GOPRIVATE: "github.com/caring"
       DOCKER_GIT_CREDENTIALS: $DOCKER_GIT_CREDENTIALS
@@ -21,3 +21,12 @@ jobs:
       - run: gotestsum --format standard-verbose --junitfile $TEST_RESULTS/results.xml
       - store_test_results:
           path: /tmp/test-results
+workflows:
+  test:
+    jobs:
+      - test:
+          context:
+            - aws-info
+          filters:
+            tags:
+              only: /.*/
