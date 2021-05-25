@@ -19,4 +19,6 @@ require (
 	go.uber.org/zap v1.15.0
 	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
 	google.golang.org/grpc v1.29.1
+	gotest.tools v2.1.0+incompatible // indirect
+	gotest.tools/gotestsum v1.6.4 // indirect
 )

@@ -31,9 +31,12 @@ const (
 	// FatalLevel logs a message, then calls os.Exit(1).
 	FatalLevel
 
-	_minLevel = DebugLevel
-	_maxLevel = FatalLevel
+	minLevel = DebugLevel
+	maxLevel = FatalLevel
 )
+
+var _ = minLevel
+var _ = maxLevel
 
 // String returns a lower-case ASCII representation of the log level.
 func (l Level) String() string {

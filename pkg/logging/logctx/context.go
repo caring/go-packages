@@ -31,8 +31,8 @@ func Extract(ctx context.Context) *logging.Logger {
 }
 
 // TagsToFields transforms the gRPC Tags on the supplied context into structured fields.
-func TagsToFields(ctx context.Context) []logging.Field {
-	fields := []logging.Field{}
+func TagsToFields(ctx context.Context) []logging.DataField {
+	var fields []logging.DataField
 	tags := grpc_ctxtags.Extract(ctx)
 	for k, v := range tags.Values() {
 		fields = append(fields, logging.Any(k, v))

@@ -1,7 +1,6 @@
 package dialer
 
 import (
-	"os"
 	"testing"
 
 	"github.com/matryer/is"
@@ -49,7 +48,6 @@ func TestApplyBuilder(t *testing.T) {
 	is.NoErr(err)
 	is.Equal(cfg.String(), "tls://example.dev.caring.com:443")
 
-
 	// Populated config should apply to builder
 	err = cfg.ApplyToBuilder(&Builder{})
 	is.NoErr(err)
@@ -66,15 +64,15 @@ func TestApplyBuilder(t *testing.T) {
 	cfg, err = ReadConnectionAddress("tls://localhost:1234")
 	is.NoErr(err)
 	is.Equal(cfg.String(), "tls://localhost:1234")
-	tls, err = cfg.loadTLS(nil)
+	tlsConfig, err := cfg.loadTLS(nil)
 	is.NoErr(err)
-	is.Equal(tls.InsecureSkipVerify, false)
+	is.Equal(tlsConfig.InsecureSkipVerify, false)
 
 	// tls string with skip_verify should parse
 	cfg, err = ReadConnectionAddress("tls://localhost:1234?skip_verify=true")
 	is.NoErr(err)
 	is.Equal(cfg.String(), "tls://localhost:1234?skip_verify=true")
-	tls, err = cfg.loadTLS(nil)
+	tlsConfig, err = cfg.loadTLS(nil)
 	is.NoErr(err)
-	is.Equal(tls.InsecureSkipVerify, true)
+	is.Equal(tlsConfig.InsecureSkipVerify, true)
 }
