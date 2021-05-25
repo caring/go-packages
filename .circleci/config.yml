@@ -1,0 +1,23 @@
+version: 2.1
+orbs:
+  go: circleci/go@1.5.0
+  aws-cli: circleci/aws-cli@1.4.0
+jobs:
+  test:
+    executor:
+      name: go/default
+      tag: '1.14'
+    environment:
+      GOPRIVATE: "github.com/caring"
+      DOCKER_GIT_CREDENTIALS: $DOCKER_GIT_CREDENTIALS
+      TEST_RESULTS: /tmp/test-results
+    steps:
+      - checkout
+      - run: mkdir -p $TEST_RESULTS
+      - go/load-cache
+      - go/mod-download
+      - go/save-cache
+      - run: go get gotest.tools/gotestsum
+      - run: gotestsum --format standard-verbose --junitfile $TEST_RESULTS/results.xml
+      - store_test_results:
+          path: /tmp/test-results

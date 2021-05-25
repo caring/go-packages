@@ -1,6 +1,7 @@
 package dialer
 
 import (
+	"os"
 	"testing"
 
 	"github.com/matryer/is"
@@ -9,21 +10,45 @@ import (
 func TestReadConnectionAddress(t *testing.T) {
 	is := is.New(t)
 
-	// Empty config should return nil and error
+	// Check empty address returns nil
 	cfg, err := ReadConnectionAddress("")
 	is.True(err != nil)
-	is.Equal(cfg, nil)
-	is.Equal(cfg.String(), "<nil>")
-	err = cfg.ApplyToBuilder(&Builder{})
-	is.True(err != nil)
+	is.True(cfg.String() == "<nil>")
 
-	// Populated config should parse
-	cfg, err = ReadConnectionAddress("tcp://localhost:1234")
+	// check dns: string
+	cfg, err = ReadConnectionAddress("dns:example.dev.caring.com")
 	is.NoErr(err)
-	is.Equal(cfg.String(), "tcp://localhost:1234")
-	tls, err := cfg.loadTLS(nil)
-	is.True(err != nil)
-	is.Equal(tls, nil)
+	is.Equal(cfg.String(), "tls://example.dev.caring.com:443")
+
+	// check tls string
+	cfg, err = ReadConnectionAddress("tls://example.dev.caring.com")
+	is.NoErr(err)
+	is.Equal(cfg.String(), "tls://example.dev.caring.com:443")
+
+	// check http scheme to tcp
+	cfg, err = ReadConnectionAddress("http://example.dev.caring.com")
+	is.NoErr(err)
+	is.Equal(cfg.String(), "tcp://example.dev.caring.com:80")
+
+	// check no scheme defaults to tls
+	cfg, err = ReadConnectionAddress("example.dev.caring.com")
+	is.NoErr(err)
+	is.Equal(cfg.String(), "tls://example.dev.caring.com:443")
+
+	// check https scheme to tls
+	cfg, err = ReadConnectionAddress("https://example.dev.caring.com")
+	is.NoErr(err)
+	is.Equal(cfg.String(), "tls://example.dev.caring.com:443")
+}
+
+func TestApplyBuilder(t *testing.T) {
+	is := is.New(t)
+
+	// check https scheme to tls
+	cfg, err := ReadConnectionAddress("https://example.dev.caring.com")
+	is.NoErr(err)
+	is.Equal(cfg.String(), "tls://example.dev.caring.com:443")
+
 
 	// Populated config should apply to builder
 	err = cfg.ApplyToBuilder(&Builder{})
