@@ -5,10 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/fs"
 	"net"
 	"net/url"
-	"os"
 	"strconv"
 	"time"
 
@@ -24,20 +22,6 @@ const (
 	// MinConnectTimeout before attempting reconnect.
 	MinConnectTimeout = 20 * time.Second
 )
-
-type Builder struct {
-	options         []grpc.DialOption
-	enabledBlocking bool
-	connectParams   grpc.ConnectParams
-	keepAliveParams keepalive.ClientParameters
-	credentials     credentials.PerRPCCredentials
-	uinterceptors   []grpc.UnaryClientInterceptor
-	sinterceptors   []grpc.StreamClientInterceptor
-	tlsConfig       *tls.Config
-	dns             *string
-	port            *uint16
-	fs              fs.FS
-}
 
 // WithOptions allows possing in multiple grpc dial options
 // DialOption configures how we set up the connection.
@@ -222,17 +206,6 @@ func (b *Builder) SetConnectionAddress(addr string) error {
 		return err
 	}
 	return nil
-}
-
-func (b *Builder) WithFS(fs fs.FS) {
-	b.fs = fs
-}
-
-func (b *Builder) GetFS() fs.FS {
-	if b.fs == nil {
-		return os.DirFS(".")
-	}
-	return b.fs
 }
 
 // Dial returns the client connection to the server.

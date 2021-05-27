@@ -281,12 +281,12 @@ func (l *Logger) getZapFields(fields ...DataField) []zap.Field {
 
 	i := internalFieldcount
 	for _, f := range l.fields {
-		zapped[i] = f.GetField()
+		zapped[i] = f.getField()
 		i++
 	}
 
 	for _, f := range fields {
-		zapped[i] = f.GetField()
+		zapped[i] = f.getField()
 		i++
 	}
 

@@ -6,8 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
-	"io/fs"
-	"io/ioutil"
 	"net/url"
 	"strings"
 
@@ -128,7 +126,7 @@ func (c *ConnectionAddress) String() string {
 	return fmt.Sprintf("%s://%s:%s%s", scheme, c.host, c.port, qry)
 }
 
-func (c *ConnectionAddress) loadTLS(fs fs.FS) (*tls.Config, error) {
+func (c *ConnectionAddress) loadTLS(b *Builder) (*tls.Config, error) {
 	if c == nil {
 		return nil, errors.Errorf("config is not initialized")
 	}
@@ -139,7 +137,7 @@ func (c *ConnectionAddress) loadTLS(fs fs.FS) (*tls.Config, error) {
 	tlsConnectionAddress := tls.Config{InsecureSkipVerify: c.skipVerify}
 
 	if c.caFile != "" {
-		pemServerCA, err := ioutil.ReadFile(c.caFile)
+		pemServerCA, err := readFile(b, c.caFile)
 		if err != nil {
 			return nil, errors.Wrap(err, "error reading CA file")
 		}
@@ -148,7 +146,16 @@ func (c *ConnectionAddress) loadTLS(fs fs.FS) (*tls.Config, error) {
 	}
 
 	if c.clientCert != "" && c.clientKey != "" {
-		cert, err := tls.LoadX509KeyPair(c.clientCert, c.clientKey)
+		clientCert, err := readFile(b, c.clientCert)
+		if err != nil {
+			return nil, err
+		}
+		clientKey, err := readFile(b, c.clientKey)
+		if err != nil {
+			return nil, err
+		}
+
+		cert, err := tls.X509KeyPair(clientCert, clientKey)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to read client certificate or key file")
 		}
@@ -172,9 +179,7 @@ func (c *ConnectionAddress) ApplyToBuilder(cb *Builder) error {
 		return errors.Wrap(err, "unable to set connect options")
 	}
 	if !c.disableTLS {
-		fs := cb.GetFS()
-
-		tlsConnectionAddress, err := c.loadTLS(fs)
+		tlsConnectionAddress, err := c.loadTLS(cb)
 		if err != nil {
 			return errors.Wrap(err, "unable to read tls options")
 		}
