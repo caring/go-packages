@@ -6,6 +6,8 @@ import (
 	"net/http"
 )
 
+var (service, branch, sha1, tag, goVersion string)
+
 type Endpoint struct {
 	Service     string `json:"service"`
 	Branch 		string `json:"branch"`
@@ -16,21 +18,21 @@ type Endpoint struct {
 }
 
 // NewEndpoint returns a initialized Endpoint struct
-func NewEndpoint(service, branch, sha1, tag, goVersion *string, l *logging.Logger) *Endpoint {
+func NewEndpoint(l *logging.Logger) *Endpoint {
 	var Tag string
 
-	if  len(*tag) < 1 {
-		Tag = *tag
+	if  len(tag) < 1 {
+		Tag = tag
 	} else {
 		Tag = "N/A"
 	}
 
 	return &Endpoint{
-		Service: *service,
-		Branch: *branch,
-		SHA1:   *sha1,
+		Service: service,
+		Branch: branch,
+		SHA1:   sha1,
 		Tag: Tag,
-		GoVersion: *goVersion,
+		GoVersion: goVersion,
 		Log: l,
 	}
 }
