@@ -12,8 +12,6 @@ type Endpoint struct {
 	SHA1   		string `json:"sha1"`
 	Tag    		string `json:"tag"`
 	GoVersion 	string `json:"go_version"`
-	ContainerID string `json:"container_id"`
-	StartedAt string `json:"started_at"`
 	Log         *logging.Logger
 }
 
@@ -33,8 +31,6 @@ func NewEndpoint(service, branch, sha1, tag, goVersion *string, l *logging.Logge
 		SHA1:   *sha1,
 		Tag: Tag,
 		GoVersion: *goVersion,
-		ContainerID: "",
-		StartedAt: "",
 		Log: l,
 	}
 }
