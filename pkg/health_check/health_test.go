@@ -1,8 +1,12 @@
 package health_check
 
-import "testing"
-import "github.com/caring/go-packages/v2/pkg/logging"
-import "github.com/stretchr/testify/assert"
+import (
+	"testing"
+
+	"github.com/caring/go-packages/v2/pkg/logging"
+	"github.com/stretchr/testify/assert"
+)
+
 
 func Test_NewEndpoint(t *testing.T) {
 	service = "emailbroker"

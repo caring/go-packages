@@ -6,34 +6,36 @@ import (
 	"net/http"
 )
 
-var (service, branch, sha1, tag, goVersion string)
+var (
+	service, branch, sha1, tag, goVersion string
+)
 
 type Endpoint struct {
-	Service     string `json:"service"`
-	Branch 		string `json:"branch"`
-	SHA1   		string `json:"sha1"`
-	Tag    		string `json:"tag"`
-	GoVersion 	string `json:"go_version"`
-	Log         *logging.Logger
+	Service   string `json:"service"`
+	Branch    string `json:"branch"`
+	SHA1      string `json:"sha1"`
+	Tag       string `json:"tag"`
+	GoVersion string `json:"go_version"`
+	Log       *logging.Logger
 }
 
 // NewEndpoint returns a initialized Endpoint struct
 func NewEndpoint(l *logging.Logger) *Endpoint {
 	var Tag string
 
-	if  len(tag) < 1 {
+	if len(tag) < 1 {
 		Tag = "N/A"
 	} else {
 		Tag = tag
 	}
 
 	return &Endpoint{
-		Service: service,
-		Branch: branch,
-		SHA1:   sha1,
-		Tag: Tag,
+		Service:   service,
+		Branch:    branch,
+		SHA1:      sha1,
+		Tag:       Tag,
 		GoVersion: goVersion,
-		Log: l,
+		Log:       l,
 	}
 }
 
@@ -46,7 +48,7 @@ func (e *Endpoint) LogStatus() error {
 	return nil
 }
 
-func(e *Endpoint) Status(w http.ResponseWriter, r *http.ResponseWriter) {
+func (e *Endpoint) Status(w http.ResponseWriter, r *http.ResponseWriter) {
 	msg, err := json.Marshal(e)
 	if err != nil {
 		e.Log.Error("Error encountered during status check: " + err.Error())
