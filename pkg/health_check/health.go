@@ -8,7 +8,10 @@ import (
 )
 
 var (
-	service, branch, sha1, tag string
+	Branch  string
+	SHA1    string
+	Tag     string
+	Service string
 )
 
 type Endpoint struct {
@@ -22,19 +25,19 @@ type Endpoint struct {
 
 // NewEndpoint returns a initialized Endpoint struct
 func NewEndpoint(l *logging.Logger) *Endpoint {
-	var Tag string
+	var tag string
 
-	if len(tag) < 1 {
-		Tag = "N/A"
+	if len(Tag) < 1 {
+		tag = "N/A"
 	} else {
-		Tag = tag
+		tag = Tag
 	}
 
 	return &Endpoint{
-		Service:   service,
-		Branch:    branch,
-		SHA1:      sha1,
-		Tag:       Tag,
+		Service:   Service,
+		Branch:    Branch,
+		SHA1:      SHA1,
+		Tag:       tag,
 		GoVersion: runtime.Version(),
 		Log:       l,
 	}
