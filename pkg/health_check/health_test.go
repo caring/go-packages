@@ -13,10 +13,18 @@ func Test_NewEndpoint(t *testing.T) {
 	l := logging.Logger{}
 
 	endPoint := NewEndpoint(&l)
-
 	assert.Equal(t, endPoint.Service, service)
 	assert.Equal(t, endPoint.Branch, branch)
 	assert.Equal(t, endPoint.SHA1, sha1)
 	assert.Equal(t, endPoint.Tag, tag)
+	assert.Equal(t, endPoint.GoVersion, goVersion)
+
+	tag = ""
+
+	endPoint = NewEndpoint(&l)
+	assert.Equal(t, endPoint.Service, service)
+	assert.Equal(t, endPoint.Branch, branch)
+	assert.Equal(t, endPoint.SHA1, sha1)
+	assert.Equal(t, endPoint.Tag, "N/A")
 	assert.Equal(t, endPoint.GoVersion, goVersion)
 }
