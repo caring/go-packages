@@ -22,9 +22,9 @@ func NewEndpoint(l *logging.Logger) *Endpoint {
 	var Tag string
 
 	if  len(tag) < 1 {
-		Tag = tag
-	} else {
 		Tag = "N/A"
+	} else {
+		Tag = tag
 	}
 
 	return &Endpoint{
