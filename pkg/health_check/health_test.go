@@ -1,6 +1,7 @@
 package health_check
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/caring/go-packages/v2/pkg/logging"
@@ -13,7 +14,7 @@ func Test_NewEndpoint(t *testing.T) {
 	branch = "master"
 	sha1 = "d6fa73ae5348b232c785ca1596e1cd3d52be115c"
 	tag = "v1.0.3"
-	goVersion = "go1.13.8"
+	goVersion := runtime.Version()
 	l := logging.Logger{}
 
 	endPoint := NewEndpoint(&l)

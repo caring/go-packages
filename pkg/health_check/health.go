@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"github.com/caring/go-packages/v2/pkg/logging"
 	"net/http"
+	"runtime"
 )
 
 var (
-	service, branch, sha1, tag, goVersion string
+	service, branch, sha1, tag string
 )
 
 type Endpoint struct {
@@ -34,7 +35,7 @@ func NewEndpoint(l *logging.Logger) *Endpoint {
 		Branch:    branch,
 		SHA1:      sha1,
 		Tag:       Tag,
-		GoVersion: goVersion,
+		GoVersion: runtime.Version(),
 		Log:       l,
 	}
 }
