@@ -17,7 +17,7 @@ type Endpoint struct {
 	SHA1      string `json:"sha1"`
 	Tag       string `json:"tag"`
 	GoVersion string `json:"go_version"`
-	Log       *logging.Logger
+	Log       *logging.Logger `json:"-"`
 }
 
 // NewEndpoint returns a initialized Endpoint struct
@@ -49,7 +49,7 @@ func (e *Endpoint) LogStatus() error {
 	return nil
 }
 
-func (e *Endpoint) Status(w http.ResponseWriter, r *http.ResponseWriter) {
+func (e *Endpoint) Status(w http.ResponseWriter, r *http.Request) {
 	msg, err := json.Marshal(e)
 	if err != nil {
 		e.Log.Error("Error encountered during status check: " + err.Error())
